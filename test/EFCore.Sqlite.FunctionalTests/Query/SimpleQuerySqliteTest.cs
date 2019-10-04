@@ -1338,13 +1338,9 @@ FROM (
             return base.Union_Take_Union_Take(isAsync);
         }
 
-        public override async Task Member_binding_after_ctor_arguments_fails_with_client_eval(bool isAsync)
+        public override Task Member_binding_after_ctor_arguments_fails_with_client_eval(bool isAsync)
         {
-            Assert.Equal(
-                CoreStrings.TranslationFailed("OrderBy<Customer, string>(    source: DbSet<Customer>,     keySelector: (c) => new CustomerListItem(        c.CustomerID,         c.City    ).City)"),
-                RemoveNewLines(
-                    (await Assert.ThrowsAsync<InvalidOperationException>(
-                        () => base.Member_binding_after_ctor_arguments_fails_with_client_eval(isAsync))).Message));
+            return AssertTranslationFailed(() => base.Member_binding_after_ctor_arguments_fails_with_client_eval(isAsync));
         }
 
         [ConditionalTheory(Skip = "Issue#17230")]
