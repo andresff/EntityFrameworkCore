@@ -494,4 +494,7 @@
   <data name="SetOperationNotWithinEntityTypeHierarchy" xml:space="preserve">
     <value>Set operations (Union, Concat, Intersect, Except) are only supported over entity types within the same type hierarchy.</value>
   </data>
+  <data name="FromSqlNonComposable" xml:space="preserve">
+    <value>FromSqlRaw/FromSqlInterpolated API is being used with non-composable SQL but query is composing over it. Considering using `AsEnumerable` after FromSqlRaw/FromSqlInterpolated method to avoid composing on server side.</value>
+  </data>
 </root>

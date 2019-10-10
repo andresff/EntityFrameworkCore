@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Storage.Internal;
@@ -312,6 +313,11 @@ namespace Microsoft.EntityFrameworkCore.Query
         {
             _relationalCommandBuilder.AppendLine("(");
 
+            if (!IsComposableSql(fromSqlExpression.Sql))
+            {
+                throw new InvalidOperationException(RelationalStrings.FromSqlNonComposable);
+            }
+
             using (_relationalCommandBuilder.Indent())
             {
                 GenerateFromSql(fromSqlExpression);
@@ -322,6 +328,15 @@ namespace Microsoft.EntityFrameworkCore.Query
                 .Append(_sqlGenerationHelper.DelimitIdentifier(fromSqlExpression.Alias));
 
             return fromSqlExpression;
+        }
+
+        private bool IsComposableSql(string sql)
+        {
+            var trimmedSql = sql.TrimStart('\r', '\n', '\t', ' ');
+
+            return trimmedSql.StartsWith("SELECT ", StringComparison.OrdinalIgnoreCase)
+                || trimmedSql.StartsWith("SELECT" + Environment.NewLine, StringComparison.OrdinalIgnoreCase)
+                || trimmedSql.StartsWith("SELECT\t", StringComparison.OrdinalIgnoreCase);
         }
 
         protected override Expression VisitSqlBinary(SqlBinaryExpression sqlBinaryExpression)

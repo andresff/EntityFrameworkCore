@@ -580,6 +580,12 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
         public static string SetOperationNotWithinEntityTypeHierarchy
             => GetString("SetOperationNotWithinEntityTypeHierarchy");
 
+        /// <summary>
+        ///     FromSqlRaw/FromSqlInterpolated API is being used with non-composable SQL but query is composing over it. Considering using `AsEnumerable` after FromSqlRaw/FromSqlInterpolated method to avoid composing on server side.
+        /// </summary>
+        public static string FromSqlNonComposable
+            => GetString("FromSqlNonComposable");
+
         private static string GetString(string name, params string[] formatterNames)
         {
             var value = _resourceManager.GetString(name);
