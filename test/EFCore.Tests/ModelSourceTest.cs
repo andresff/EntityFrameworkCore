@@ -39,10 +39,8 @@ namespace Microsoft.EntityFrameworkCore
                 0, threadCount,
                 i =>
                 {
-                    using (var context = new SlowContext())
-                    {
-                        models[i] = context.Model;
-                    }
+                    using var context = new SlowContext();
+                    models[i] = context.Model;
                 });
 
             Assert.NotNull(models[0]);
@@ -175,7 +173,7 @@ namespace Microsoft.EntityFrameworkCore
                     new ModelSourceDependencies(
                         new ModelCustomizer(new ModelCustomizerDependencies(setFinder)),
                         InMemoryTestHelpers.Instance.CreateContextServices().GetRequiredService<IModelCacheKeyFactory>(),
-                        new MemoryCache(new MemoryCacheOptions() { SizeLimit = 200 })))
+                        new MemoryCache(new MemoryCacheOptions { SizeLimit = 200 })))
             {
             }
         }

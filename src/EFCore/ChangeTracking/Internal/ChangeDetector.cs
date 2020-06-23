@@ -31,15 +31,6 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
     {
         private readonly IDiagnosticsLogger<DbLoggerCategory.ChangeTracking> _logger;
         private readonly ILoggingOptions _loggingOptions;
-
-        /// <summary>
-        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
-        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
-        ///     any release. You should only use it directly in your code with extreme caution and knowing that
-        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
-        /// </summary>
-        public const string SkipDetectChangesAnnotation = "ChangeDetector.SkipDetectChanges";
-
         private bool _suspended;
 
         /// <summary>
@@ -97,7 +88,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 }
             }
             else if (propertyBase.GetRelationshipIndex() != -1
-                     && propertyBase is INavigation navigation)
+                && propertyBase is INavigation navigation)
             {
                 DetectNavigationChange(entry, navigation);
             }
@@ -197,7 +188,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                     var current = entry[property];
                     var original = entry.GetOriginalValue(property);
 
-                    var comparer = property.GetValueComparer() ?? property.FindTypeMapping()?.Comparer;
+                    var comparer = property.GetValueComparer();
 
                     if (comparer == null)
                     {
@@ -251,17 +242,16 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 var snapshotValue = entry.GetRelationshipSnapshotValue(property);
                 var currentValue = entry[property];
 
-                var comparer = property.GetKeyValueComparer()
-                               ?? property.FindTypeMapping()?.KeyComparer;
+                var comparer = property.GetKeyValueComparer();
 
                 // Note that mutation of a byte[] key is not supported or detected, but two different instances
                 // of byte[] with the same content must be detected as equal.
                 if (!(comparer?.Equals(currentValue, snapshotValue)
-                      ?? StructuralComparisons.StructuralEqualityComparer.Equals(currentValue, snapshotValue)))
+                    ?? StructuralComparisons.StructuralEqualityComparer.Equals(currentValue, snapshotValue)))
                 {
-                    var keys = property.GetContainingKeys().ToList();
+                    var keys = property.GetContainingKeys();
                     var foreignKeys = property.GetContainingForeignKeys()
-                        .Where(fk => fk.DeclaringEntityType.IsAssignableFrom(entry.EntityType)).ToList();
+                        .Where(fk => fk.DeclaringEntityType.IsAssignableFrom(entry.EntityType));
 
                     if (_loggingOptions.IsSensitiveDataLoggingEnabled)
                     {
@@ -284,12 +274,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             var currentValue = entry[navigation];
             var stateManager = entry.StateManager;
 
-            if (navigation.IsCollection())
+            if (navigation.IsCollection)
             {
                 var snapshotCollection = (IEnumerable)snapshotValue;
                 var currentCollection = (IEnumerable)currentValue;
 
-                var removed = new HashSet<object>(ReferenceEqualityComparer.Instance);
+                var removed = new HashSet<object>(LegacyReferenceEqualityComparer.Instance);
                 if (snapshotCollection != null)
                 {
                     foreach (var entity in snapshotCollection)
@@ -298,7 +288,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                     }
                 }
 
-                var added = new HashSet<object>(ReferenceEqualityComparer.Instance);
+                var added = new HashSet<object>(LegacyReferenceEqualityComparer.Instance);
                 if (currentCollection != null)
                 {
                     foreach (var entity in currentCollection)
@@ -326,8 +316,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 }
             }
             else if (!ReferenceEquals(currentValue, snapshotValue)
-                     && (!navigation.ForeignKey.IsOwnership
-                         || !navigation.IsDependentToPrincipal()))
+                && (!navigation.ForeignKey.IsOwnership
+                    || !navigation.IsOnDependent))
             {
                 if (_loggingOptions.IsSensitiveDataLoggingEnabled)
                 {

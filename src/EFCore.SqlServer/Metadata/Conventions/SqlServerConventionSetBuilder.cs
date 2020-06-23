@@ -61,7 +61,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
 
             var sqlServerInMemoryTablesConvention = new SqlServerMemoryOptimizedTablesConvention(Dependencies, RelationalDependencies);
             conventionSet.EntityTypeAnnotationChangedConventions.Add(sqlServerInMemoryTablesConvention);
-            ReplaceConvention(conventionSet.EntityTypeAnnotationChangedConventions, (RelationalValueGenerationConvention)valueGenerationConvention);
+            ReplaceConvention(
+                conventionSet.EntityTypeAnnotationChangedConventions, (RelationalValueGenerationConvention)valueGenerationConvention);
 
             ReplaceConvention(conventionSet.EntityTypePrimaryKeyChangedConventions, valueGenerationConvention);
 
@@ -87,17 +88,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             ReplaceConvention(
                 conventionSet.PropertyAnnotationChangedConventions, (RelationalValueGenerationConvention)valueGenerationConvention);
 
-            ConventionSet.AddBefore(
-                conventionSet.ModelFinalizedConventions,
-                valueGenerationStrategyConvention,
-                typeof(ValidatingConvention));
-
-            ConventionSet.AddBefore(
-                conventionSet.ModelFinalizedConventions,
-                new SqlServerEnumConvention(Dependencies),
-                typeof(ValidatingConvention));
-
-            ReplaceConvention(conventionSet.ModelFinalizedConventions, storeGenerationConvention);
+            conventionSet.ModelFinalizingConventions.Add(valueGenerationStrategyConvention);
+            ReplaceConvention(conventionSet.ModelFinalizingConventions, storeGenerationConvention);
+            ReplaceConvention(conventionSet.ModelFinalizingConventions,
+                (SharedTableConvention)new SqlServerSharedTableConvention(Dependencies, RelationalDependencies));
 
             return conventionSet;
         }
@@ -123,13 +117,9 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
                             .UseInternalServiceProvider(p))
                 .BuildServiceProvider();
 
-            using (var serviceScope = serviceProvider.GetRequiredService<IServiceScopeFactory>().CreateScope())
-            {
-                using (var context = serviceScope.ServiceProvider.GetService<DbContext>())
-                {
-                    return ConventionSet.CreateConventionSet(context);
-                }
-            }
+            using var serviceScope = serviceProvider.GetRequiredService<IServiceScopeFactory>().CreateScope();
+            using var context = serviceScope.ServiceProvider.GetService<DbContext>();
+            return ConventionSet.CreateConventionSet(context);
         }
     }
 }

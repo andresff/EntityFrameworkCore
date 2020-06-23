@@ -44,9 +44,8 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
 
                 modelBuilder.Entity<SpecialBookLabel>().Property(b => b.BookId);
 
-                modelBuilder.FinalizeModel();
+                var model = modelBuilder.FinalizeModel();
 
-                var model = modelBuilder.Model;
                 Assert.Empty(model.FindEntityType(typeof(ExtraSpecialBookLabel)).GetDeclaredProperties());
                 Assert.Empty(model.FindEntityType(typeof(SpecialBookLabel)).GetDeclaredProperties());
                 Assert.NotNull(model.FindEntityType(typeof(SpecialBookLabel)).FindProperty(nameof(BookLabel.BookId)));
@@ -62,15 +61,36 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 modelBuilder.Entity<ExtraSpecialBookLabel>();
                 modelBuilder.Entity<SpecialBookLabel>().Ignore(b => b.BookLabel);
 
-                modelBuilder.FinalizeModel();
+                var model = modelBuilder.FinalizeModel();
 
-                var model = modelBuilder.Model;
                 var moreDerived = model.FindEntityType(typeof(ExtraSpecialBookLabel));
                 var derived = model.FindEntityType(typeof(SpecialBookLabel));
                 var baseType = model.FindEntityType(typeof(BookLabel));
 
                 Assert.Same(baseType, derived.BaseType);
                 Assert.Same(derived, moreDerived.BaseType);
+            }
+
+            [ConditionalFact]
+            public virtual void Can_specify_discriminator_values_first()
+            {
+                var modelBuilder = CreateModelBuilder();
+
+                modelBuilder.Ignore<P>();
+
+                modelBuilder.Entity<PBase>()
+                    .HasDiscriminator<int>("TypeDiscriminator")
+                    .HasValue<T>(1)
+                    .HasValue<Q>(2);
+
+                modelBuilder.Entity<P>();
+
+                var model = modelBuilder.FinalizeModel();
+
+                Assert.Null(model.FindEntityType(typeof(PBase)).GetDiscriminatorValue());
+                Assert.Null(model.FindEntityType(typeof(P)).GetDiscriminatorValue());
+                Assert.Equal(1, model.FindEntityType(typeof(T)).GetDiscriminatorValue());
+                Assert.Equal(2, model.FindEntityType(typeof(Q)).GetDiscriminatorValue());
             }
 
             [ConditionalFact]
@@ -353,7 +373,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                     .WithOne(e => e.SpecialOrderCombination)
                     .HasPrincipalKey<OrderCombination>(e => e.Id);
 
-                Assert.Null(dependentEntityBuilder.Metadata.GetNavigations().Single().FindInverse());
+                Assert.Null(dependentEntityBuilder.Metadata.GetNavigations().Single().Inverse);
                 var newFk = derivedDependentEntityBuilder.Metadata.GetDeclaredNavigations().Single().ForeignKey;
                 Assert.Equal(nameof(SpecialOrder.SpecialOrderCombination), newFk.DependentToPrincipal.Name);
                 Assert.Equal(nameof(OrderCombination.Order), newFk.PrincipalToDependent.Name);
@@ -380,7 +400,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                     .WithOne()
                     .HasForeignKey<SpecialOrder>(e => e.SpecialCustomerId);
 
-                Assert.Null(dependentEntityBuilder.Metadata.GetNavigations().Single().FindInverse());
+                Assert.Null(dependentEntityBuilder.Metadata.GetNavigations().Single().Inverse);
                 var newFk = principalEntityBuilder.Metadata.GetDeclaredNavigations().Single().ForeignKey;
                 Assert.Null(newFk.DependentToPrincipal);
                 Assert.Equal(nameof(OrderCombination.Order), newFk.PrincipalToDependent.Name);
@@ -628,7 +648,7 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 Assert.False(derivedDependentEntityType.GetDeclaredForeignKeys().Single().IsUnique);
                 Assert.Empty(derivedDependentEntityType.GetDeclaredIndexes());
 
-                AssertEqual(initialProperties, derivedDependentEntityType.GetProperties(), new PropertyComparer(false));
+                AssertEqual(initialProperties, derivedDependentEntityType.GetProperties());
                 AssertEqual(initialKeys, derivedDependentEntityType.GetKeys());
                 AssertEqual(initialIndexes, derivedDependentEntityType.GetIndexes());
                 AssertEqual(initialForeignKeys, derivedDependentEntityType.GetForeignKeys());
@@ -705,11 +725,11 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
 
                 var bookLabel = modelBuilder.Model.FindEntityType(typeof(BookLabel));
                 var specialNavigation = bookLabel.GetDeclaredNavigations().Single(n => n.Name == nameof(BookLabel.SpecialBookLabel));
-                Assert.Equal(typeof(SpecialBookLabel), specialNavigation.GetTargetType().ClrType);
-                Assert.Equal(nameof(SpecialBookLabel.BookLabel), specialNavigation.FindInverse().Name);
+                Assert.Equal(typeof(SpecialBookLabel), specialNavigation.TargetEntityType.ClrType);
+                Assert.Equal(nameof(SpecialBookLabel.BookLabel), specialNavigation.Inverse.Name);
                 var anotherNavigation = bookLabel.GetDeclaredNavigations().Single(n => n.Name == nameof(BookLabel.AnotherBookLabel));
-                Assert.Equal(typeof(AnotherBookLabel), anotherNavigation.GetTargetType().ClrType);
-                Assert.Null(anotherNavigation.FindInverse());
+                Assert.Equal(typeof(AnotherBookLabel), anotherNavigation.TargetEntityType.ClrType);
+                Assert.Null(anotherNavigation.Inverse);
             }
 
             [ConditionalFact]
@@ -743,15 +763,15 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
 
                 var citizen = modelBuilder.Model.FindEntityType(typeof(CitizenViewModel));
                 var citizenNavigation = citizen.GetDeclaredNavigations().Single(n => n.Name == nameof(CitizenViewModel.CityVM));
-                Assert.Equal(nameof(CityViewModel.People), citizenNavigation.FindInverse().Name);
+                Assert.Equal(nameof(CityViewModel.People), citizenNavigation.Inverse.Name);
 
                 var doctor = modelBuilder.Model.FindEntityType(typeof(DoctorViewModel));
                 var doctorNavigation = doctor.GetDeclaredNavigations().Single(n => n.Name == nameof(CitizenViewModel.CityVM));
-                Assert.Equal(nameof(CityViewModel.Medics), doctorNavigation.FindInverse().Name);
+                Assert.Equal(nameof(CityViewModel.Medics), doctorNavigation.Inverse.Name);
 
                 var police = modelBuilder.Model.FindEntityType(typeof(PoliceViewModel));
                 var policeNavigation = police.GetDeclaredNavigations().Single(n => n.Name == nameof(CitizenViewModel.CityVM));
-                Assert.Equal(nameof(CityViewModel.Police), policeNavigation.FindInverse().Name);
+                Assert.Equal(nameof(CityViewModel.Police), policeNavigation.Inverse.Name);
 
                 Assert.Empty(modelBuilder.Model.FindEntityType(typeof(CityViewModel)).GetForeignKeys());
 
@@ -828,34 +848,52 @@ namespace Microsoft.EntityFrameworkCore.ModelBuilding
                 Assert.Equal(ValueGenerated.OnAdd, mb.Model.FindEntityType(typeof(Q)).FindProperty(nameof(Q.ID)).ValueGenerated);
             }
 
-            public class L
+            [ConditionalFact]
+            public void Can_get_set_discriminator_mapping_is_complete()
+            {
+                var mb = CreateModelBuilder();
+                var baseTypeBuilder = mb.Entity<PBase>();
+                var derivedTypeBuilder = mb.Entity<Q>();
+
+                Assert.True(baseTypeBuilder.Metadata.GetIsDiscriminatorMappingComplete());
+
+                baseTypeBuilder.HasDiscriminator<string>("Discriminator").IsComplete(false);
+                Assert.False(baseTypeBuilder.Metadata.GetIsDiscriminatorMappingComplete());
+                Assert.True(derivedTypeBuilder.Metadata.GetIsDiscriminatorMappingComplete());
+
+                derivedTypeBuilder.HasDiscriminator<string>("Discriminator").IsComplete(true);
+                Assert.False(baseTypeBuilder.Metadata.GetIsDiscriminatorMappingComplete());
+                Assert.True(derivedTypeBuilder.Metadata.GetIsDiscriminatorMappingComplete());
+            }
+
+            protected class L
             {
                 public int Id { get; set; }
                 public IList<T> Ts { get; set; }
             }
 
-            public class T : P
+            protected class T : P
             {
                 public Q D { get; set; }
                 public P P { get; set; }
                 public Q F { get; set; }
             }
 
-            public class P : PBase
+            protected abstract class P : PBase
             {
             }
 
-            public class Q : PBase
+            protected class Q : PBase
             {
             }
 
-            public abstract class PBase
+            protected abstract class PBase
             {
                 public int ID { get; set; }
                 public string Stuff { get; set; }
             }
 
-            public class AL
+            protected class AL
             {
                 public int Id { get; set; }
                 public PBase L { get; set; }

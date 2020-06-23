@@ -33,7 +33,7 @@ namespace Microsoft.EntityFrameworkCore
     ///     </para>
     ///     <para>
     ///         <see cref="DbSet{TEntity}" /> objects are usually obtained from a <see cref="DbSet{TEntity}" />
-    ///         property on a derived <see cref="DbContext" /> or from the <see cref="DbContext.Set{TEntity}" />
+    ///         property on a derived <see cref="DbContext" /> or from the <see cref="DbContext.Set{TEntity}()" />
     ///         method.
     ///     </para>
     /// </summary>
@@ -42,6 +42,30 @@ namespace Microsoft.EntityFrameworkCore
         : IQueryable<TEntity>, IAsyncEnumerable<TEntity>, IInfrastructure<IServiceProvider>, IListSource
         where TEntity : class
     {
+        /// <summary>
+        ///     <para>
+        ///         Returns this object typed as <see cref="IAsyncEnumerable{T}" />.
+        ///     </para>
+        ///     <para>
+        ///         This is a convenience method to help with disambiguation of extension methods in the same
+        ///         namespace that extend both interfaces.
+        ///     </para>
+        /// </summary>
+        /// <returns> This object. </returns>
+        public virtual IAsyncEnumerable<TEntity> AsAsyncEnumerable() => this;
+
+        /// <summary>
+        ///     <para>
+        ///         Returns this object typed as <see cref="IQueryable{T}" />.
+        ///     </para>
+        ///     <para>
+        ///         This is a convenience method to help with disambiguation of extension methods in the same
+        ///         namespace that extend both interfaces.
+        ///     </para>
+        /// </summary>
+        /// <returns> This object. </returns>
+        public virtual IQueryable<TEntity> AsQueryable() => this;
+
         /// <summary>
         ///     <para>
         ///         Gets an <see cref="LocalView{TEntity}" /> that represents a local view of all Added, Unchanged,
@@ -528,7 +552,7 @@ namespace Microsoft.EntityFrameworkCore
 
         /// <summary>
         ///     Gets a value indicating whether the collection is a collection of System.Collections.IList objects.
-        ///     Always returns false.
+        ///     Always returns <see langword="false"/>. 
         /// </summary>
         bool IListSource.ContainsListCollection => false;
 
@@ -545,7 +569,7 @@ namespace Microsoft.EntityFrameworkCore
         ///     Determines whether the specified object is equal to the current object.
         /// </summary>
         /// <param name="obj"> The object to compare with the current object. </param>
-        /// <returns> true if the specified object is equal to the current object; otherwise, false. </returns>
+        /// <returns> <see langword="true"/> if the specified object is equal to the current object; otherwise, <see langword="false"/>. </returns>
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override bool Equals(object obj) => base.Equals(obj);
 

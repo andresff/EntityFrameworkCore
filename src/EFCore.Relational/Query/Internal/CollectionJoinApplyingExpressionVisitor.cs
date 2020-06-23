@@ -3,15 +3,42 @@
 
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
+using Microsoft.EntityFrameworkCore.Utilities;
 
 namespace Microsoft.EntityFrameworkCore.Query.Internal
 {
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
     public class CollectionJoinApplyingExpressionVisitor : ExpressionVisitor
     {
+        private readonly bool _splitQuery;
         private int _collectionId;
 
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public CollectionJoinApplyingExpressionVisitor(bool splitQuery)
+        {
+            _splitQuery = splitQuery;
+        }
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
         protected override Expression VisitExtension(Expression extensionExpression)
         {
+            Check.NotNull(extensionExpression, nameof(extensionExpression));
+
             if (extensionExpression is CollectionShaperExpression collectionShaperExpression)
             {
                 var collectionId = _collectionId++;
@@ -21,29 +48,46 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                 if (selectExpression.IsDistinct
                     || selectExpression.Limit != null
                     || selectExpression.Offset != null
-                    || selectExpression.GroupBy.Count > 1)
+                    || selectExpression.GroupBy.Count > 0)
                 {
                     selectExpression.PushdownIntoSubquery();
                 }
 
-                var innerShaper = Visit(collectionShaperExpression.InnerShaper);
+                if (_splitQuery)
+                {
+                    var splitCollectionShaperExpression = (RelationalSplitCollectionShaperExpression)selectExpression.ApplyCollectionJoin(
+                        projectionBindingExpression.Index.Value,
+                        collectionId,
+                        collectionShaperExpression.InnerShaper,
+                        collectionShaperExpression.Navigation,
+                        collectionShaperExpression.ElementType,
+                        _splitQuery);
 
-                return selectExpression.ApplyCollectionJoin(
-                    projectionBindingExpression.Index.Value,
-                    collectionId,
-                    innerShaper,
-                    collectionShaperExpression.Navigation,
-                    collectionShaperExpression.ElementType);
+                    var innerShaper = Visit(splitCollectionShaperExpression.InnerShaper);
+
+                    return splitCollectionShaperExpression.Update(
+                        splitCollectionShaperExpression.ParentIdentifier,
+                        splitCollectionShaperExpression.ChildIdentifier,
+                        splitCollectionShaperExpression.SelectExpression,
+                        innerShaper);
+                }
+                else
+                {
+                    var innerShaper = Visit(collectionShaperExpression.InnerShaper);
+
+                    return selectExpression.ApplyCollectionJoin(
+                        projectionBindingExpression.Index.Value,
+                        collectionId,
+                        innerShaper,
+                        collectionShaperExpression.Navigation,
+                        collectionShaperExpression.ElementType,
+                        _splitQuery);
+                }
             }
 
-            if (extensionExpression is ShapedQueryExpression shapedQueryExpression)
-            {
-                shapedQueryExpression.ShaperExpression = Visit(shapedQueryExpression.ShaperExpression);
-
-                return shapedQueryExpression;
-            }
-
-            return base.VisitExtension(extensionExpression);
+            return extensionExpression is ShapedQueryExpression shapedQueryExpression
+                ? shapedQueryExpression.UpdateShaperExpression(Visit(shapedQueryExpression.ShaperExpression))
+                : base.VisitExtension(extensionExpression);
         }
     }
 }

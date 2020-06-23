@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore.Query;
 
 namespace Microsoft.EntityFrameworkCore.TestUtilities.QueryTestGeneration
 {
@@ -76,12 +77,13 @@ namespace Microsoft.EntityFrameworkCore.TestUtilities.QueryTestGeneration
             {
                 var entityType = Context.Model.FindEntityType(typeArgument);
                 var navigations = entityType.GetNavigations().ToList();
-                var collectionNavigations = navigations.Where(n => n.IsCollection()).ToList();
+                var collectionNavigations = navigations.Where(n => n.IsCollection).ToList();
 
                 var collectionNavigation = random.Choose(collectionNavigations);
                 if (collectionNavigation != null)
                 {
-                    var any = EnumerableAnyMethodInfo.MakeGenericMethod(collectionNavigation.ForeignKey.DeclaringEntityType.ClrType);
+                    var any = EnumerableMethods.AnyWithoutPredicate.MakeGenericMethod(
+                        collectionNavigation.ForeignKey.DeclaringEntityType.ClrType);
 
                     // collection.Any()
                     candidateExpressions.Add(
@@ -101,7 +103,7 @@ namespace Microsoft.EntityFrameworkCore.TestUtilities.QueryTestGeneration
                 lambdaBody = Expression.Not(lambdaBody);
             }
 
-            var where = WhereMethodInfo.MakeGenericMethod(typeArgument);
+            var where = QueryableMethods.Where.MakeGenericMethod(typeArgument);
             var lambda = Expression.Lambda(lambdaBody, prm);
             var injector = new ExpressionInjector(expressionToInject, e => Expression.Call(where, e, lambda));
 

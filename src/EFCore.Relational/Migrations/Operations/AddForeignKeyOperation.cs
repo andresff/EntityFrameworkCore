@@ -1,6 +1,7 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System.Diagnostics;
 using JetBrains.Annotations;
 
 namespace Microsoft.EntityFrameworkCore.Migrations.Operations
@@ -8,6 +9,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Operations
     /// <summary>
     ///     A <see cref="MigrationOperation" /> to add a new foreign key.
     /// </summary>
+    [DebuggerDisplay("ALTER TABLE {Table} ADD CONSTRAINT {Name} FOREIGN KEY")]
     public class AddForeignKeyOperation : MigrationOperation
     {
         /// <summary>
@@ -16,7 +18,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Operations
         public virtual string Name { get; [param: NotNull] set; }
 
         /// <summary>
-        ///     The schema that contains the table, or <c>null</c> if the default schema should be used.
+        ///     The schema that contains the table, or <see langword="null" /> if the default schema should be used.
         /// </summary>
         public virtual string Schema { get; [param: CanBeNull] set; }
 
@@ -32,7 +34,7 @@ namespace Microsoft.EntityFrameworkCore.Migrations.Operations
 
         /// <summary>
         ///     The schema that contains the table to which this foreign key is constrained,
-        ///     or <c>null</c> if the default schema should be used.
+        ///     or <see langword="null" /> if the default schema should be used.
         /// </summary>
         public virtual string PrincipalSchema { get; [param: CanBeNull] set; }
 

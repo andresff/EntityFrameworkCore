@@ -54,10 +54,8 @@ namespace Microsoft.EntityFrameworkCore
         {
             using (CreateTestStore(OnModelCreating))
             {
-                using (var context = CreateContext())
-                {
-                    Assert.Equal(5, context.Set<Operator>().ToList().Count);
-                }
+                using var context = CreateContext();
+                Assert.Equal(5, context.Set<Operator>().ToList().Count);
             }
         }
 
@@ -71,10 +69,8 @@ namespace Microsoft.EntityFrameworkCore
                     modelBuilder.Ignore<LicensedOperator>();
                 }))
             {
-                using (var context = CreateContext())
-                {
-                    Assert.Equal(5, context.Set<Operator>().ToList().Count);
-                }
+                using var context = CreateContext();
+                Assert.Equal(5, context.Set<Operator>().ToList().Count);
             }
         }
 
@@ -89,10 +85,8 @@ namespace Microsoft.EntityFrameworkCore
                     modelBuilder.Entity<OperatorDetails>().ToTable("OperatorDetails");
                 }))
             {
-                using (var context = CreateContext())
-                {
-                    Assert.Equal(5, context.Set<Operator>().ToList().Count);
-                }
+                using var context = CreateContext();
+                Assert.Equal(5, context.Set<Operator>().ToList().Count);
             }
         }
 
@@ -101,10 +95,8 @@ namespace Microsoft.EntityFrameworkCore
         {
             using (CreateTestStore(OnModelCreating))
             {
-                using (var context = CreateContext())
-                {
-                    Assert.Equal(2, context.Set<FuelTank>().ToList().Count);
-                }
+                using var context = CreateContext();
+                Assert.Equal(2, context.Set<FuelTank>().ToList().Count);
             }
         }
 
@@ -118,10 +110,8 @@ namespace Microsoft.EntityFrameworkCore
                     modelBuilder.Ignore<SolidFuelTank>();
                 }))
             {
-                using (var context = CreateContext())
-                {
-                    Assert.Equal(2, context.Set<FuelTank>().ToList().Count);
-                }
+                using var context = CreateContext();
+                Assert.Equal(2, context.Set<FuelTank>().ToList().Count);
             }
         }
 
@@ -141,10 +131,8 @@ namespace Microsoft.EntityFrameworkCore
                         });
                 }))
             {
-                using (var context = CreateContext())
-                {
-                    Assert.Equal(2, context.Set<FuelTank>().ToList().Count);
-                }
+                using var context = CreateContext();
+                Assert.Equal(2, context.Set<FuelTank>().ToList().Count);
             }
         }
 
@@ -183,22 +171,32 @@ namespace Microsoft.EntityFrameworkCore
                 modelBuilder =>
                 {
                     OnModelCreating(modelBuilder);
-                    modelBuilder.Entity<Vehicle>(vb => {
-                        vb.Property(v => v.SeatingCapacity).HasColumnName("SeatingCapacity");
-                    });
-                    modelBuilder.Entity<Engine>(cb =>
-                    {
-                        cb.Property<int>("SeatingCapacity").HasColumnName("SeatingCapacity");
-                    });
-                    modelBuilder.Entity<FuelTank>(fb =>
-                    {
-                        fb.Ignore(f => f.Engine);
-                    });
+                    modelBuilder.Entity<Vehicle>(
+                        vb =>
+                        {
+                            vb.Property(v => v.SeatingCapacity).HasColumnName("SeatingCapacity");
+                        });
+                    modelBuilder.Entity<Engine>(
+                        cb =>
+                        {
+                            cb.Property<int>("SeatingCapacity").HasColumnName("SeatingCapacity");
+                        });
+                    modelBuilder.Entity<FuelTank>(
+                        fb =>
+                        {
+                            fb.Ignore(f => f.Engine);
+                        });
                 }, seed: false))
             {
                 using (var context = CreateContext())
                 {
-                    var scooterEntry = context.Add(new PoweredVehicle { Name = "Electric scooter", SeatingCapacity = 1, Engine = new Engine() });
+                    var scooterEntry = context.Add(
+                        new PoweredVehicle
+                        {
+                            Name = "Electric scooter",
+                            SeatingCapacity = 1,
+                            Engine = new Engine()
+                        });
 
                     scooterEntry.Reference(v => v.Engine).TargetEntry.Property<int>("SeatingCapacity").CurrentValue = 1;
 
@@ -310,20 +308,23 @@ namespace Microsoft.EntityFrameworkCore
         {
             using (CreateTestStore(OnModelCreating))
             {
-                using (var context = CreateContext())
-                {
-                    context.Add(
-                        new PoweredVehicle
-                        {
-                            Name = "Fuel transport",
-                            SeatingCapacity = 1,
-                            Operator = new LicensedOperator { Name = "Jack Jackson", LicenseType = "Class A CDC" }
-                        });
-                    context.Add(
-                        new FuelTank { Capacity = "10000 l", FuelType = "Gas", VehicleName = "Fuel transport" });
+                using var context = CreateContext();
+                context.Add(
+                    new PoweredVehicle
+                    {
+                        Name = "Fuel transport",
+                        SeatingCapacity = 1,
+                        Operator = new LicensedOperator { Name = "Jack Jackson", LicenseType = "Class A CDC" }
+                    });
+                context.Add(
+                    new FuelTank
+                    {
+                        Capacity = "10000 l",
+                        FuelType = "Gas",
+                        VehicleName = "Fuel transport"
+                    });
 
-                    context.SaveChanges();
-                }
+                context.SaveChanges();
             }
         }
 
@@ -398,7 +399,12 @@ namespace Microsoft.EntityFrameworkCore
                 {
                     var bike = context.Vehicles.Single(v => v.Name == "Trek Pro Fit Madone 6 Series");
 
-                    var newBike = new Vehicle { Name = "Trek Pro Fit Madone 6 Series", Operator = bike.Operator, SeatingCapacity = 2 };
+                    var newBike = new Vehicle
+                    {
+                        Name = "Trek Pro Fit Madone 6 Series",
+                        Operator = bike.Operator,
+                        SeatingCapacity = 2
+                    };
 
                     context.Remove(bike);
                     context.Add(newBike);
@@ -504,13 +510,14 @@ namespace Microsoft.EntityFrameworkCore
                 .AddSingleton<ILoggerFactory>(TestSqlLoggerFactory)
                 .BuildServiceProvider(validateScopes: true);
 
-            TestStore.Initialize(ServiceProvider, CreateContext, c =>
-            {
-                if (seed)
+            TestStore.Initialize(
+                ServiceProvider, CreateContext, c =>
                 {
-                    ((TransportationContext)c).Seed();
-                }
-            });
+                    if (seed)
+                    {
+                        ((TransportationContext)c).Seed();
+                    }
+                });
 
             TestSqlLoggerFactory.Clear();
 

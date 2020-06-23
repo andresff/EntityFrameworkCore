@@ -14,15 +14,15 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
     /// </summary>
     public abstract class EventDefinitionBase
     {
-        private readonly WarningBehavior _warningBehavior;
-
         /// <summary>
         ///     Creates an event definition instance.
         /// </summary>
         /// <param name="loggingOptions"> Logging options. </param>
         /// <param name="eventId"> The <see cref="Microsoft.Extensions.Logging.EventId" />. </param>
         /// <param name="level"> The <see cref="LogLevel" /> at which the event will be logged. </param>
-        /// <param name="eventIdCode"> A string representing the code that should be passed to <see cref="DbContextOptionsBuilder.ConfigureWarnings" />. </param>
+        /// <param name="eventIdCode">
+        ///     A string representing the code that should be passed to <see cref="DbContextOptionsBuilder.ConfigureWarnings" />.
+        /// </param>
         protected EventDefinitionBase(
             [NotNull] ILoggingOptions loggingOptions,
             EventId eventId,
@@ -46,14 +46,15 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 }
 
                 var behavior = warningsConfiguration.GetBehavior(eventId);
-                _warningBehavior = behavior ?? (level == LogLevel.Warning
-                                                && warningsConfiguration.DefaultBehavior == WarningBehavior.Throw
-                                       ? WarningBehavior.Throw
-                                       : WarningBehavior.Log);
+                WarningBehavior = behavior
+                    ?? (level == LogLevel.Warning
+                        && warningsConfiguration.DefaultBehavior == WarningBehavior.Throw
+                            ? WarningBehavior.Throw
+                            : WarningBehavior.Log);
             }
             else
             {
-                _warningBehavior = WarningBehavior.Log;
+                WarningBehavior = WarningBehavior.Log;
             }
 
             Level = level;
@@ -84,17 +85,9 @@ namespace Microsoft.EntityFrameworkCore.Diagnostics
                 CoreStrings.WarningAsErrorTemplate(EventId.ToString(), message, EventIdCode));
 
         /// <summary>
-        ///     Gets the log behavior for this event. This determines whether it should be logged, thrown as an exception or ignored.
+        ///     The configured <see cref="WarningBehavior"/>.
         /// </summary>
-        /// <typeparam name="TLoggerCategory"> The <see cref="DbLoggerCategory" />. </typeparam>
-        /// <param name="logger"> The logger to which the event would be logged. </param>
-        /// <returns> Whether the event should be logged, thrown as an exception or ignored. </returns>
-        public virtual WarningBehavior GetLogBehavior<TLoggerCategory>(
-            [NotNull] IDiagnosticsLogger<TLoggerCategory> logger)
-            where TLoggerCategory : LoggerCategory<TLoggerCategory>, new()
-            => _warningBehavior == WarningBehavior.Log
-                ? logger.Logger.IsEnabled(Level) ? WarningBehavior.Log : WarningBehavior.Ignore
-                : _warningBehavior;
+        public virtual WarningBehavior WarningBehavior { get;  }
 
         internal sealed class MessageExtractingLogger : ILogger
         {

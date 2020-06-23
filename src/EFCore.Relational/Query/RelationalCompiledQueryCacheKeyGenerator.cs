@@ -63,10 +63,11 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <param name="query"> The query to get the cache key for. </param>
         /// <param name="async"> A value indicating whether the query will be executed asynchronously. </param>
         /// <returns> The cache key. </returns>
-        protected new RelationalCompiledQueryCacheKey GenerateCacheKeyCore([NotNull] Expression query, bool async)
+        protected new RelationalCompiledQueryCacheKey GenerateCacheKeyCore([NotNull] Expression query, bool async) // Intentionally non-virtual
             => new RelationalCompiledQueryCacheKey(
                 base.GenerateCacheKeyCore(query, async),
-                RelationalOptionsExtension.Extract(RelationalDependencies.ContextOptions).UseRelationalNulls);
+                RelationalOptionsExtension.Extract(RelationalDependencies.ContextOptions).UseRelationalNulls,
+                shouldBuffer: Dependencies.IsRetryingExecutionStrategy);
 
         /// <summary>
         ///     <para>
@@ -82,17 +83,20 @@ namespace Microsoft.EntityFrameworkCore.Query
         {
             private readonly CompiledQueryCacheKey _compiledQueryCacheKey;
             private readonly bool _useRelationalNulls;
+            private readonly bool _shouldBuffer;
 
             /// <summary>
             ///     Initializes a new instance of the <see cref="RelationalCompiledQueryCacheKey" /> class.
             /// </summary>
             /// <param name="compiledQueryCacheKey"> The non-relational cache key. </param>
             /// <param name="useRelationalNulls"> True to use relational null logic. </param>
+            /// <param name="shouldBuffer"> <see langword="true"/> if the query should be buffered. </param>
             public RelationalCompiledQueryCacheKey(
-                CompiledQueryCacheKey compiledQueryCacheKey, bool useRelationalNulls)
+                CompiledQueryCacheKey compiledQueryCacheKey, bool useRelationalNulls, bool shouldBuffer)
             {
                 _compiledQueryCacheKey = compiledQueryCacheKey;
                 _useRelationalNulls = useRelationalNulls;
+                _shouldBuffer = shouldBuffer;
             }
 
             /// <summary>
@@ -102,16 +106,18 @@ namespace Microsoft.EntityFrameworkCore.Query
             ///     The object to compare this key to.
             /// </param>
             /// <returns>
-            ///     True if the object is a <see cref="RelationalCompiledQueryCacheKey" /> and is for the same query, otherwise false.
+            ///     <see langword="true"/> if the object is a <see cref="RelationalCompiledQueryCacheKey" /> and is for the same query,
+            ///     otherwise <see langword="false"/>.
             /// </returns>
             public override bool Equals(object obj)
                 => !(obj is null)
-                   && obj is RelationalCompiledQueryCacheKey
-                   && Equals((RelationalCompiledQueryCacheKey)obj);
+                    && obj is RelationalCompiledQueryCacheKey key
+                    && Equals(key);
 
             private bool Equals(RelationalCompiledQueryCacheKey other)
                 => _compiledQueryCacheKey.Equals(other._compiledQueryCacheKey)
-                   && _useRelationalNulls == other._useRelationalNulls;
+                    && _useRelationalNulls == other._useRelationalNulls
+                    && _shouldBuffer == other._shouldBuffer;
 
             /// <summary>
             ///     Gets the hash code for the key.
@@ -119,7 +125,7 @@ namespace Microsoft.EntityFrameworkCore.Query
             /// <returns>
             ///     The hash code for the key.
             /// </returns>
-            public override int GetHashCode() => HashCode.Combine(_compiledQueryCacheKey, _useRelationalNulls);
+            public override int GetHashCode() => HashCode.Combine(_compiledQueryCacheKey, _useRelationalNulls, _shouldBuffer);
         }
     }
 }

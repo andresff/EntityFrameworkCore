@@ -92,11 +92,17 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             return constructorExpression;
         }
 
-        private Expression CreateSnapshotExpression(
-            Type entityType,
-            ParameterExpression parameter,
-            Type[] types,
-            IList<IPropertyBase> propertyBases)
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        protected virtual Expression CreateSnapshotExpression(
+            [CanBeNull] Type entityType,
+            [NotNull] ParameterExpression parameter,
+            [NotNull] Type[] types,
+            [NotNull] IList<IPropertyBase> propertyBases)
         {
             var count = types.Length;
 
@@ -134,16 +140,17 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                     continue;
                 }
 
-                var memberAccess = (Expression)Expression.MakeMemberAccess(
-                    entityVariable,
-                    propertyBase.GetMemberInfo(forMaterialization: false, forSet: false));
+                var memberInfo = propertyBase.GetMemberInfo(forMaterialization: false, forSet: false);
+                var memberAccess = propertyBase.IsIndexerProperty()
+                    ? Expression.MakeIndex(entityVariable, (PropertyInfo)memberInfo, new[] { Expression.Constant(propertyBase.Name) })
+                    : (Expression)Expression.MakeMemberAccess(entityVariable, memberInfo);
 
                 if (memberAccess.Type != propertyBase.ClrType)
                 {
                     memberAccess = Expression.Convert(memberAccess, propertyBase.ClrType);
                 }
 
-                arguments[i] = (propertyBase as INavigation)?.IsCollection() ?? false
+                arguments[i] = (propertyBase as INavigation)?.IsCollection ?? false
                     ? Expression.Call(
                         null,
                         _snapshotCollectionMethod,
@@ -158,19 +165,19 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 typeof(ISnapshot));
 
             return UseEntityVariable
-                   && entityVariable != null
-                ? (Expression)Expression.Block(
-                    new List<ParameterExpression> { entityVariable },
-                    new List<Expression>
-                    {
-                        Expression.Assign(
-                            entityVariable,
-                            Expression.Convert(
-                                Expression.Property(parameter, "Entity"),
-                                entityType)),
-                        constructorExpression
-                    })
-                : constructorExpression;
+                && entityVariable != null
+                    ? (Expression)Expression.Block(
+                        new List<ParameterExpression> { entityVariable },
+                        new List<Expression>
+                        {
+                            Expression.Assign(
+                                entityVariable,
+                                Expression.Convert(
+                                    Expression.Property(parameter, "Entity"),
+                                    entityType)),
+                            constructorExpression
+                        })
+                    : constructorExpression;
         }
 
         private Expression CreateSnapshotValueExpression(Expression expression, IPropertyBase propertyBase)
@@ -263,6 +270,6 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         private static HashSet<object> SnapshotCollection(IEnumerable<object> collection)
             => collection == null
                 ? null
-                : new HashSet<object>(collection, ReferenceEqualityComparer.Instance);
+                : new HashSet<object>(collection, LegacyReferenceEqualityComparer.Instance);
     }
 }

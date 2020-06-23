@@ -16,8 +16,7 @@ namespace Microsoft.EntityFrameworkCore.Design.Internal
         public void Create_works()
         {
             var factory = new TestAppServiceProviderFactory(
-                MockAssembly.Create(typeof(Program)),
-                typeof(Program));
+                MockAssembly.Create(typeof(Program)));
 
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", null);
             var services = factory.Create(new[] { "arg1" });
@@ -47,8 +46,7 @@ namespace Microsoft.EntityFrameworkCore.Design.Internal
         public void Create_works_when_no_BuildWebHost()
         {
             var factory = new TestAppServiceProviderFactory(
-                MockAssembly.Create(typeof(ProgramWithoutBuildWebHost)),
-                typeof(ProgramWithoutBuildWebHost));
+                MockAssembly.Create(typeof(ProgramWithoutBuildWebHost)));
 
             var services = factory.Create(Array.Empty<string>());
 
@@ -65,15 +63,13 @@ namespace Microsoft.EntityFrameworkCore.Design.Internal
             var reporter = new TestOperationReporter();
             var factory = new TestAppServiceProviderFactory(
                 MockAssembly.Create(typeof(ProgramWithThrowingBuildWebHost)),
-                typeof(ProgramWithThrowingBuildWebHost),
                 reporter);
 
             var services = factory.Create(Array.Empty<string>());
 
             Assert.NotNull(services);
             Assert.Contains(
-                "warn: " +
-                DesignStrings.InvokeCreateHostBuilderFailed("This is a test."),
+                "warn: " + DesignStrings.InvokeCreateHostBuilderFailed("This is a test."),
                 reporter.Messages);
         }
 

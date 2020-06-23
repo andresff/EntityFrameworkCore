@@ -61,8 +61,8 @@ namespace Microsoft.EntityFrameworkCore.Internal
         {
             return keyValues == null || keyValues.Any(v => v == null)
                 ? null
-                : FindTracked(keyValues, out var keyProperties)
-                  ?? _queryRoot.FirstOrDefault(BuildLambda(keyProperties, new ValueBuffer(keyValues)));
+                : (FindTracked(keyValues, out var keyProperties)
+                    ?? _queryRoot.FirstOrDefault(BuildLambda(keyProperties, new ValueBuffer(keyValues))));
         }
 
         /// <summary>
@@ -160,7 +160,8 @@ namespace Microsoft.EntityFrameworkCore.Internal
             var keyValues = GetLoadValues(navigation, entry);
             if (keyValues != null)
             {
-                await Query(navigation, keyValues).LoadAsync(cancellationToken);
+                await Query(navigation, keyValues).LoadAsync(cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             entry.SetIsLoaded(navigation);
@@ -246,7 +247,7 @@ namespace Microsoft.EntityFrameworkCore.Internal
 
         private static object[] GetLoadValues(INavigation navigation, InternalEntityEntry entry)
         {
-            var properties = navigation.IsDependentToPrincipal()
+            var properties = navigation.IsOnDependent
                 ? navigation.ForeignKey.Properties
                 : navigation.ForeignKey.PrincipalKey.Properties;
 
@@ -267,7 +268,7 @@ namespace Microsoft.EntityFrameworkCore.Internal
         }
 
         private static IReadOnlyList<IProperty> GetLoadProperties(INavigation navigation)
-            => navigation.IsDependentToPrincipal()
+            => navigation.IsOnDependent
                 ? navigation.ForeignKey.PrincipalKey.Properties
                 : navigation.ForeignKey.Properties;
 
@@ -321,18 +322,21 @@ namespace Microsoft.EntityFrameworkCore.Internal
 
         private IQueryable BuildQueryRoot(IEntityType entityType)
         {
-            var definingEntityType = entityType.DefiningEntityType;
-            return definingEntityType == null
-                ? (IQueryable)_setCache.GetOrAddSet(_setSource, entityType.ClrType)
-                : BuildQueryRoot(definingEntityType, entityType);
+            return entityType.DefiningEntityType is IEntityType definingEntityType
+                ? BuildQueryRoot(definingEntityType, entityType, entityType.DefiningNavigationName)
+                : entityType.FindOwnership() is IForeignKey ownership
+                    ? BuildQueryRoot(ownership.PrincipalEntityType, entityType, ownership.PrincipalToDependent.Name)
+                    : entityType.HasSharedClrType
+                        ? (IQueryable)_setCache.GetOrAddSet(_setSource, entityType.Name, entityType.ClrType)
+                        : (IQueryable)_setCache.GetOrAddSet(_setSource, entityType.ClrType);
         }
 
-        private IQueryable BuildQueryRoot(IEntityType definingEntityType, IEntityType entityType)
+        private IQueryable BuildQueryRoot(IEntityType ownerOrDefiningEntityType, IEntityType entityType, string navigationName)
         {
-            var queryRoot = BuildQueryRoot(definingEntityType);
+            var queryRoot = BuildQueryRoot(ownerOrDefiningEntityType);
 
-            return (IQueryable)_selectMethod.MakeGenericMethod(definingEntityType.ClrType, entityType.ClrType)
-                .Invoke(null, new object[] { queryRoot, entityType.DefiningNavigationName });
+            return (IQueryable)_selectMethod.MakeGenericMethod(ownerOrDefiningEntityType.ClrType, entityType.ClrType)
+                .Invoke(null, new object[] { queryRoot, navigationName });
         }
 
         private static readonly MethodInfo _selectMethod

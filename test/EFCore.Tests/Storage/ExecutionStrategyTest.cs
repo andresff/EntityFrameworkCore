@@ -65,7 +65,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
                 Assert.True(
                     Math.Abs((delays[i] - expectedDelays[i]).TotalMilliseconds)
                     <= expectedDelays[i].TotalMilliseconds * 0.1 + 1,
-                    string.Format("Expected: {0}; Actual: {1}", expectedDelays[i], delays[i]));
+                    $"Expected: {expectedDelays[i]}; Actual: {delays[i]}");
             }
         }
 
@@ -144,17 +144,15 @@ namespace Microsoft.EntityFrameworkCore.Storage
         private void Execute_throws_for_an_enlisted_transaction(Action<ExecutionStrategy> execute)
         {
             var mockExecutionStrategy = new TestExecutionStrategy(Context);
-            using (var t = new CommittableTransaction())
-            {
-                Context.Database.EnlistTransaction(t);
+            using var t = new CommittableTransaction();
+            Context.Database.EnlistTransaction(t);
 
-                Assert.Equal(
-                    CoreStrings.ExecutionStrategyExistingTransaction(
-                        mockExecutionStrategy.GetType().Name, "DbContext.Database.CreateExecutionStrategy()"),
-                    Assert.Throws<InvalidOperationException>(
-                            () => execute(mockExecutionStrategy))
-                        .Message);
-            }
+            Assert.Equal(
+                CoreStrings.ExecutionStrategyExistingTransaction(
+                    mockExecutionStrategy.GetType().Name, "DbContext.Database.CreateExecutionStrategy()"),
+                Assert.Throws<InvalidOperationException>(
+                        () => execute(mockExecutionStrategy))
+                    .Message);
         }
 
         [ConditionalFact]
@@ -281,18 +279,18 @@ namespace Microsoft.EntityFrameworkCore.Storage
         }
 
         [ConditionalFact]
-        public void Execute_Action_retries_until_not_retrieable_exception_is_thrown()
+        public void Execute_Action_retries_until_not_retriable_exception_is_thrown()
         {
-            Execute_retries_until_not_retrieable_exception_is_thrown((e, f) => e.Execute(() => f()));
+            Execute_retries_until_not_retriable_exception_is_thrown((e, f) => e.Execute(() => f()));
         }
 
         [ConditionalFact]
-        public void Execute_Func_retries_until_not_retrieable_exception_is_thrown()
+        public void Execute_Func_retries_until_not_retriable_exception_is_thrown()
         {
-            Execute_retries_until_not_retrieable_exception_is_thrown((e, f) => e.Execute(f));
+            Execute_retries_until_not_retriable_exception_is_thrown((e, f) => e.Execute(f));
         }
 
-        private void Execute_retries_until_not_retrieable_exception_is_thrown(Action<ExecutionStrategy, Func<int>> execute)
+        private void Execute_retries_until_not_retriable_exception_is_thrown(Action<ExecutionStrategy, Func<int>> execute)
         {
             var executionStrategyMock = new TestExecutionStrategy(
                 Context,
@@ -424,17 +422,15 @@ namespace Microsoft.EntityFrameworkCore.Storage
         private async Task ExecuteAsync_throws_for_an_enlisted_transaction(Func<ExecutionStrategy, Task> executeAsync)
         {
             var mockExecutionStrategy = new TestExecutionStrategy(Context);
-            using (var t = new CommittableTransaction())
-            {
-                Context.Database.EnlistTransaction(t);
+            using var t = new CommittableTransaction();
+            Context.Database.EnlistTransaction(t);
 
-                Assert.Equal(
-                    CoreStrings.ExecutionStrategyExistingTransaction(
-                        mockExecutionStrategy.GetType().Name, "DbContext.Database.CreateExecutionStrategy()"),
-                    (await Assert.ThrowsAsync<InvalidOperationException>(
-                        () => executeAsync(mockExecutionStrategy)))
-                    .Message);
-            }
+            Assert.Equal(
+                CoreStrings.ExecutionStrategyExistingTransaction(
+                    mockExecutionStrategy.GetType().Name, "DbContext.Database.CreateExecutionStrategy()"),
+                (await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => executeAsync(mockExecutionStrategy)))
+                .Message);
         }
 
         [ConditionalFact]

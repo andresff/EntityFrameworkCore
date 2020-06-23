@@ -1,6 +1,7 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System;
 using System.IO;
 using System.Reflection;
 using Microsoft.DotNet.Cli.CommandLine;
@@ -21,6 +22,8 @@ namespace Microsoft.EntityFrameworkCore.Tools.Commands
 
         public override void Configure(CommandLineApplication command)
         {
+            command.AllowArgumentSeparator = true;
+
             _assembly = command.Option("-a|--assembly <PATH>", Resources.AssemblyDescription);
             _startupAssembly = command.Option("-s|--startup-assembly <PATH>", Resources.StartupAssemblyDescription);
             _dataDir = command.Option("--data-dir <PATH>", Resources.DataDirDescription);
@@ -42,29 +45,36 @@ namespace Microsoft.EntityFrameworkCore.Tools.Commands
             }
         }
 
-        protected IOperationExecutor CreateExecutor()
+        protected IOperationExecutor CreateExecutor(string[] remainingArguments)
         {
             try
             {
 #if NET461
-                return new AppDomainOperationExecutor(
-                    _assembly.Value(),
-                    _startupAssembly.Value(),
-                    _projectDir.Value(),
-                    _dataDir.Value(),
-                    _rootNamespace.Value(),
-                    _language.Value());
-#elif NETCOREAPP2_0
+                try
+                {
+                    return new AppDomainOperationExecutor(
+                        _assembly.Value(),
+                        _startupAssembly.Value(),
+                        _projectDir.Value(),
+                        _dataDir.Value(),
+                        _rootNamespace.Value(),
+                        _language.Value(),
+                        remainingArguments);
+                }
+                catch (MissingMethodException) // NB: Thrown with EF Core 3.1
+                {
+                }
+#elif !NETCOREAPP2_0
+#error target frameworks need to be updated.
+#endif
                 return new ReflectionOperationExecutor(
                     _assembly.Value(),
                     _startupAssembly.Value(),
                     _projectDir.Value(),
                     _dataDir.Value(),
                     _rootNamespace.Value(),
-                    _language.Value());
-#else
-#error target frameworks need to be updated.
-#endif
+                    _language.Value(),
+                    remainingArguments);
             }
             catch (FileNotFoundException ex)
                 when (new AssemblyName(ex.FileName).Name == OperationExecutorBase.DesignAssemblyName)

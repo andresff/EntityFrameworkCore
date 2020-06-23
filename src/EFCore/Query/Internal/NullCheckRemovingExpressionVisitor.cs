@@ -3,19 +3,31 @@
 
 using System.Collections.Generic;
 using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore.Utilities;
 
 namespace Microsoft.EntityFrameworkCore.Query.Internal
 {
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
     public class NullCheckRemovingExpressionVisitor : ExpressionVisitor
     {
         private readonly NullSafeAccessVerifyingExpressionVisitor _nullSafeAccessVerifyingExpressionVisitor
             = new NullSafeAccessVerifyingExpressionVisitor();
 
-        private readonly NullConditionalRemovingExpressionVisitor _nullConditionalRemovingExpressionVisitor
-            = new NullConditionalRemovingExpressionVisitor();
-
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
         protected override Expression VisitConditional(ConditionalExpression conditionalExpression)
         {
+            Check.NotNull(conditionalExpression, nameof(conditionalExpression));
+
             var test = Visit(conditionalExpression.Test);
 
             if (test is BinaryExpression binaryTest
@@ -39,42 +51,20 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                     ? conditionalExpression.IfFalse
                     : conditionalExpression.IfTrue;
 
-                // Unwrap nested nullConditional
-                if (caller is NullConditionalExpression nullConditionalCaller)
-                {
-                    accessOperation = ReplacingExpressionVisitor.Replace(
-                        _nullConditionalRemovingExpressionVisitor.Visit(nullConditionalCaller.AccessOperation),
-                        nullConditionalCaller,
-                        accessOperation);
-                }
-
                 if (_nullSafeAccessVerifyingExpressionVisitor.Verify(caller, accessOperation))
                 {
-                    return new NullConditionalExpression(caller, accessOperation);
+                    return accessOperation;
                 }
             }
 
             return base.VisitConditional(conditionalExpression);
         }
 
-        private class NullConditionalRemovingExpressionVisitor : ExpressionVisitor
-        {
-            public override Expression Visit(Expression expression)
-            {
-                if (expression is NullConditionalExpression nullConditionalExpression)
-                {
-                    return Visit(nullConditionalExpression.AccessOperation);
-                }
-
-                return base.Visit(expression);
-            }
-        }
-
-        private class NullSafeAccessVerifyingExpressionVisitor : ExpressionVisitor
+        private sealed class NullSafeAccessVerifyingExpressionVisitor : ExpressionVisitor
         {
             private readonly ISet<Expression> _nullSafeAccesses = new HashSet<Expression>(ExpressionEqualityComparer.Instance);
 
-            public virtual bool Verify(Expression caller, Expression result)
+            public bool Verify(Expression caller, Expression result)
             {
                 _nullSafeAccesses.Clear();
                 _nullSafeAccesses.Add(caller);
@@ -90,6 +80,8 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
             protected override Expression VisitMember(MemberExpression memberExpression)
             {
+                Check.NotNull(memberExpression, nameof(memberExpression));
+
                 var innerExpression = Visit(memberExpression.Expression);
                 if (_nullSafeAccesses.Contains(innerExpression))
                 {
@@ -101,9 +93,11 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
             protected override Expression VisitUnary(UnaryExpression unaryExpression)
             {
+                Check.NotNull(unaryExpression, nameof(unaryExpression));
+
                 var operand = Visit(unaryExpression.Operand);
                 if ((unaryExpression.NodeType == ExpressionType.Convert
-                     || unaryExpression.NodeType == ExpressionType.ConvertChecked)
+                        || unaryExpression.NodeType == ExpressionType.ConvertChecked)
                     && _nullSafeAccesses.Contains(operand))
                 {
                     _nullSafeAccesses.Add(unaryExpression);
@@ -115,6 +109,6 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
         private bool IsNullConstant(Expression expression)
             => expression is ConstantExpression constantExpression
-               && constantExpression.Value == null;
+                && constantExpression.Value == null;
     }
 }

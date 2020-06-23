@@ -1,6 +1,7 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
+using System.Data.Common;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -56,13 +57,13 @@ namespace Microsoft.EntityFrameworkCore.Query
         [EntityFrameworkInternal]
         public RelationalQueryContextDependencies(
             [NotNull] IRelationalConnection relationalConnection,
-            [NotNull] IExecutionStrategyFactory executionStrategyFactory)
+            [NotNull] IRelationalQueryStringFactory relationalQueryStringFactory)
         {
             Check.NotNull(relationalConnection, nameof(relationalConnection));
-            Check.NotNull(executionStrategyFactory, nameof(executionStrategyFactory));
+            Check.NotNull(relationalQueryStringFactory, nameof(relationalQueryStringFactory));
 
             RelationalConnection = relationalConnection;
-            ExecutionStrategyFactory = executionStrategyFactory;
+            RelationalQueryStringFactory = relationalQueryStringFactory;
         }
 
         /// <summary>
@@ -71,9 +72,9 @@ namespace Microsoft.EntityFrameworkCore.Query
         public IRelationalConnection RelationalConnection { get; }
 
         /// <summary>
-        ///     The execution strategy.
+        ///     A factory for creating a readable query string from a <see cref="DbCommand"/>
         /// </summary>
-        public IExecutionStrategyFactory ExecutionStrategyFactory { get; }
+        public IRelationalQueryStringFactory RelationalQueryStringFactory { get; }
 
         /// <summary>
         ///     Clones this dependency parameter object with one service replaced.
@@ -81,14 +82,14 @@ namespace Microsoft.EntityFrameworkCore.Query
         /// <param name="relationalConnection"> A replacement for the current dependency of this type. </param>
         /// <returns> A new parameter object with the given service replaced. </returns>
         public RelationalQueryContextDependencies With([NotNull] IRelationalConnection relationalConnection)
-            => new RelationalQueryContextDependencies(relationalConnection, ExecutionStrategyFactory);
+            => new RelationalQueryContextDependencies(relationalConnection, RelationalQueryStringFactory);
 
         /// <summary>
         ///     Clones this dependency parameter object with one service replaced.
         /// </summary>
-        /// <param name="executionStrategyFactory"> A replacement for the current dependency of this type. </param>
+        /// <param name="relationalQueryStringFactory"> A replacement for the current dependency of this type. </param>
         /// <returns> A new parameter object with the given service replaced. </returns>
-        public RelationalQueryContextDependencies With([NotNull] IExecutionStrategyFactory executionStrategyFactory)
-            => new RelationalQueryContextDependencies(RelationalConnection, executionStrategyFactory);
+        public RelationalQueryContextDependencies With([NotNull] IRelationalQueryStringFactory relationalQueryStringFactory)
+            => new RelationalQueryContextDependencies(RelationalConnection, relationalQueryStringFactory);
     }
 }

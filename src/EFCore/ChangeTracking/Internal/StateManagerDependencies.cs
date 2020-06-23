@@ -75,6 +75,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             [NotNull] IEntityFinderSource entityFinderSource,
             [NotNull] IDbSetSource setSource,
             [NotNull] IEntityMaterializerSource entityMaterializerSource,
+            [NotNull] IExecutionStrategyFactory executionStrategyFactory,
             [NotNull] ILoggingOptions loggingOptions,
             [NotNull] IDiagnosticsLogger<DbLoggerCategory.Update> updateLogger,
             [NotNull] IDiagnosticsLogger<DbLoggerCategory.ChangeTracking> changeTrackingLogger)
@@ -90,6 +91,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             EntityFinderSource = entityFinderSource;
             SetSource = setSource;
             EntityMaterializerSource = entityMaterializerSource;
+            ExecutionStrategyFactory = executionStrategyFactory;
             LoggingOptions = loggingOptions;
             UpdateLogger = updateLogger;
             ChangeTrackingLogger = changeTrackingLogger;
@@ -165,6 +167,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
+        [EntityFrameworkInternal]
         public IDbSetSource SetSource { get; }
 
         /// <summary>
@@ -173,6 +176,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
+        [EntityFrameworkInternal]
         public IEntityFinderSource EntityFinderSource { get; }
 
         /// <summary>
@@ -182,6 +186,14 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public IEntityMaterializerSource EntityMaterializerSource { get; }
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public IExecutionStrategyFactory ExecutionStrategyFactory { get; }
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -225,6 +237,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 EntityFinderSource,
                 SetSource,
                 EntityMaterializerSource,
+                ExecutionStrategyFactory,
                 LoggingOptions,
                 UpdateLogger,
                 ChangeTrackingLogger);
@@ -247,6 +260,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 EntityFinderSource,
                 SetSource,
                 EntityMaterializerSource,
+                ExecutionStrategyFactory,
                 LoggingOptions,
                 UpdateLogger,
                 ChangeTrackingLogger);
@@ -269,6 +283,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 EntityFinderSource,
                 SetSource,
                 EntityMaterializerSource,
+                ExecutionStrategyFactory,
                 LoggingOptions,
                 UpdateLogger,
                 ChangeTrackingLogger);
@@ -278,7 +293,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         /// </summary>
         /// <param name="valueGenerationManager"> A replacement for the current dependency of this type. </param>
         /// <returns> A new parameter object with the given service replaced. </returns>
-        public StateManagerDependencies With([NotNull] ValueGenerationManager valueGenerationManager)
+        public StateManagerDependencies With([NotNull] IValueGenerationManager valueGenerationManager)
             => new StateManagerDependencies(
                 InternalEntityEntryFactory,
                 InternalEntityEntrySubscriber,
@@ -291,6 +306,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 EntityFinderSource,
                 SetSource,
                 EntityMaterializerSource,
+                ExecutionStrategyFactory,
                 LoggingOptions,
                 UpdateLogger,
                 ChangeTrackingLogger);
@@ -313,6 +329,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 EntityFinderSource,
                 SetSource,
                 EntityMaterializerSource,
+                ExecutionStrategyFactory,
                 LoggingOptions,
                 UpdateLogger,
                 ChangeTrackingLogger);
@@ -335,6 +352,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 EntityFinderSource,
                 SetSource,
                 EntityMaterializerSource,
+                ExecutionStrategyFactory,
                 LoggingOptions,
                 UpdateLogger,
                 ChangeTrackingLogger);
@@ -357,6 +375,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 EntityFinderSource,
                 SetSource,
                 EntityMaterializerSource,
+                ExecutionStrategyFactory,
                 LoggingOptions,
                 UpdateLogger,
                 ChangeTrackingLogger);
@@ -379,6 +398,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 EntityFinderSource,
                 SetSource,
                 EntityMaterializerSource,
+                ExecutionStrategyFactory,
                 LoggingOptions,
                 UpdateLogger,
                 ChangeTrackingLogger);
@@ -388,6 +408,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         /// </summary>
         /// <param name="entityFinderSource"> A replacement for the current dependency of this type. </param>
         /// <returns> A new parameter object with the given service replaced. </returns>
+        [EntityFrameworkInternal]
         public StateManagerDependencies With([NotNull] IEntityFinderSource entityFinderSource)
             => new StateManagerDependencies(
                 InternalEntityEntryFactory,
@@ -401,6 +422,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 entityFinderSource,
                 SetSource,
                 EntityMaterializerSource,
+                ExecutionStrategyFactory,
                 LoggingOptions,
                 UpdateLogger,
                 ChangeTrackingLogger);
@@ -410,6 +432,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         /// </summary>
         /// <param name="setSource"> A replacement for the current dependency of this type. </param>
         /// <returns> A new parameter object with the given service replaced. </returns>
+        [EntityFrameworkInternal]
         public StateManagerDependencies With([NotNull] IDbSetSource setSource)
             => new StateManagerDependencies(
                 InternalEntityEntryFactory,
@@ -423,6 +446,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 EntityFinderSource,
                 setSource,
                 EntityMaterializerSource,
+                ExecutionStrategyFactory,
                 LoggingOptions,
                 UpdateLogger,
                 ChangeTrackingLogger);
@@ -445,6 +469,31 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 EntityFinderSource,
                 SetSource,
                 entityMaterializerSource,
+                ExecutionStrategyFactory,
+                LoggingOptions,
+                UpdateLogger,
+                ChangeTrackingLogger);
+
+
+        /// <summary>
+        ///     Clones this dependency parameter object with one service replaced.
+        /// </summary>
+        /// <param name="executionStrategyFactory"> A replacement for the current dependency of this type. </param>
+        /// <returns> A new parameter object with the given service replaced. </returns>
+        public StateManagerDependencies With([NotNull] IExecutionStrategyFactory executionStrategyFactory)
+            => new StateManagerDependencies(
+                InternalEntityEntryFactory,
+                InternalEntityEntrySubscriber,
+                InternalEntityEntryNotifier,
+                ValueGenerationManager,
+                Model,
+                Database,
+                ConcurrencyDetector,
+                CurrentContext,
+                EntityFinderSource,
+                SetSource,
+                EntityMaterializerSource,
+                executionStrategyFactory,
                 LoggingOptions,
                 UpdateLogger,
                 ChangeTrackingLogger);
@@ -467,6 +516,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 EntityFinderSource,
                 SetSource,
                 EntityMaterializerSource,
+                ExecutionStrategyFactory,
                 loggingOptions,
                 UpdateLogger,
                 ChangeTrackingLogger);
@@ -489,6 +539,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 EntityFinderSource,
                 SetSource,
                 EntityMaterializerSource,
+                ExecutionStrategyFactory,
                 LoggingOptions,
                 updateLogger,
                 ChangeTrackingLogger);
@@ -511,6 +562,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
                 EntityFinderSource,
                 SetSource,
                 EntityMaterializerSource,
+                ExecutionStrategyFactory,
                 LoggingOptions,
                 UpdateLogger,
                 changeTrackingLogger);

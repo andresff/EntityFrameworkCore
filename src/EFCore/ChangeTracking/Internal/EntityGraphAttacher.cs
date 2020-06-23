@@ -79,6 +79,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         private static bool PaintAction(
             EntityEntryGraphNode<(EntityState TargetState, EntityState StoreGenTargetState, bool Force)> node)
         {
+            SetReferenceLoaded(node);
+
             var internalEntityEntry = node.GetInfrastructure();
             if (internalEntityEntry.EntityState != EntityState.Detached)
             {
@@ -103,6 +105,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             EntityEntryGraphNode<(EntityState TargetState, EntityState StoreGenTargetState, bool Force)> node,
             CancellationToken cancellationToken)
         {
+            SetReferenceLoaded(node);
+
             var internalEntityEntry = node.GetInfrastructure();
             if (internalEntityEntry.EntityState != EntityState.Detached)
             {
@@ -114,14 +118,26 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             var (isGenerated, isSet) = internalEntityEntry.IsKeySet;
 
             await internalEntityEntry.SetEntityStateAsync(
-                isSet
-                    ? (isGenerated ? storeGenTargetState : targetState)
-                    : EntityState.Added, // Key can only be not-set if it is store-generated
-                acceptChanges: true,
-                forceStateWhenUnknownKey: force ? (EntityState?)targetState : null,
-                cancellationToken: cancellationToken);
+                    isSet
+                        ? (isGenerated ? storeGenTargetState : targetState)
+                        : EntityState.Added, // Key can only be not-set if it is store-generated
+                    acceptChanges: true,
+                    forceStateWhenUnknownKey: force ? (EntityState?)targetState : null,
+                    cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
 
             return true;
+        }
+
+        private static void SetReferenceLoaded(
+            EntityEntryGraphNode<(EntityState TargetState, EntityState StoreGenTargetState, bool Force)> node)
+        {
+            var inboundNavigation = node.InboundNavigation;
+            if (inboundNavigation != null
+                && !inboundNavigation.IsCollection)
+            {
+                node.SourceEntry.GetInfrastructure().SetIsLoaded(inboundNavigation);
+            }
         }
     }
 }

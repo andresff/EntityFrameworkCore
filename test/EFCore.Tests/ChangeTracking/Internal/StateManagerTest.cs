@@ -38,181 +38,217 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         [ConditionalFact]
         public void Identity_conflict_throws_for_primary_key()
         {
-            using (var context = new IdentityConflictContext())
-            {
-                context.Attach(
-                    new SingleKey { Id = 77, AlternateId = 66 });
+            using var context = new IdentityConflictContext();
+            context.Attach(
+                new SingleKey { Id = 77, AlternateId = 66 });
 
-                Assert.Equal(
-                    CoreStrings.IdentityConflict("SingleKey", "{'Id'}"),
-                    Assert.Throws<InvalidOperationException>(
-                        () => context.Attach(
-                            new SingleKey { Id = 77, AlternateId = 67 })).Message);
-            }
+            Assert.Equal(
+                CoreStrings.IdentityConflict("SingleKey", "{'Id'}"),
+                Assert.Throws<InvalidOperationException>(
+                    () => context.Attach(
+                        new SingleKey { Id = 77, AlternateId = 67 })).Message);
         }
 
         [ConditionalFact]
         public void Identity_conflict_throws_for_alternate_key()
         {
-            using (var context = new IdentityConflictContext())
-            {
-                context.Attach(
-                    new SingleKey { Id = 77, AlternateId = 66 });
+            using var context = new IdentityConflictContext();
+            context.Attach(
+                new SingleKey { Id = 77, AlternateId = 66 });
 
-                Assert.Equal(
-                    CoreStrings.IdentityConflict("SingleKey", "{'AlternateId'}"),
-                    Assert.Throws<InvalidOperationException>(
-                        () => context.Attach(
-                            new SingleKey { Id = 78, AlternateId = 66 })).Message);
-            }
+            Assert.Equal(
+                CoreStrings.IdentityConflict("SingleKey", "{'AlternateId'}"),
+                Assert.Throws<InvalidOperationException>(
+                    () => context.Attach(
+                        new SingleKey { Id = 78, AlternateId = 66 })).Message);
         }
 
         [ConditionalFact]
         public void Identity_conflict_throws_for_composite_primary_key()
         {
-            using (var context = new IdentityConflictContext())
-            {
-                context.Attach(
-                    new CompositeKey { Id1 = 77, Id2 = 78, AlternateId1 = 66, AlternateId2 = 67 });
+            using var context = new IdentityConflictContext();
+            context.Attach(
+                new CompositeKey
+                {
+                    Id1 = 77,
+                    Id2 = 78,
+                    AlternateId1 = 66,
+                    AlternateId2 = 67
+                });
 
-                Assert.Equal(
-                    CoreStrings.IdentityConflict("CompositeKey", "{'Id1', 'Id2'}"),
-                    Assert.Throws<InvalidOperationException>(
-                        () => context.Attach(
-                            new CompositeKey { Id1 = 77, Id2 = 78, AlternateId1 = 66, AlternateId2 = 68 })).Message);
-            }
+            Assert.Equal(
+                CoreStrings.IdentityConflict("CompositeKey", "{'Id1', 'Id2'}"),
+                Assert.Throws<InvalidOperationException>(
+                    () => context.Attach(
+                        new CompositeKey
+                        {
+                            Id1 = 77,
+                            Id2 = 78,
+                            AlternateId1 = 66,
+                            AlternateId2 = 68
+                        })).Message);
         }
 
         [ConditionalFact]
         public void Identity_conflict_throws_for_composite_alternate_key()
         {
-            using (var context = new IdentityConflictContext())
-            {
-                context.Attach(
-                    new CompositeKey { Id1 = 77, Id2 = 78, AlternateId1 = 66, AlternateId2 = 67 });
+            using var context = new IdentityConflictContext();
+            context.Attach(
+                new CompositeKey
+                {
+                    Id1 = 77,
+                    Id2 = 78,
+                    AlternateId1 = 66,
+                    AlternateId2 = 67
+                });
 
-                Assert.Equal(
-                    CoreStrings.IdentityConflict("CompositeKey", "{'AlternateId1', 'AlternateId2'}"),
-                    Assert.Throws<InvalidOperationException>(
-                        () => context.Attach(
-                            new CompositeKey { Id1 = 77, Id2 = 79, AlternateId1 = 66, AlternateId2 = 67 })).Message);
-            }
+            Assert.Equal(
+                CoreStrings.IdentityConflict("CompositeKey", "{'AlternateId1', 'AlternateId2'}"),
+                Assert.Throws<InvalidOperationException>(
+                    () => context.Attach(
+                        new CompositeKey
+                        {
+                            Id1 = 77,
+                            Id2 = 79,
+                            AlternateId1 = 66,
+                            AlternateId2 = 67
+                        })).Message);
         }
 
         [ConditionalFact]
         public void Identity_conflict_throws_for_primary_key_values_logged()
         {
-            using (var context = new SensitiveIdentityConflictContext())
-            {
-                context.Attach(
-                    new SingleKey { Id = 77, AlternateId = 66 });
+            using var context = new SensitiveIdentityConflictContext();
+            context.Attach(
+                new SingleKey { Id = 77, AlternateId = 66 });
 
-                Assert.Equal(
-                    CoreStrings.IdentityConflictSensitive("SingleKey", "{Id: 77}"),
-                    Assert.Throws<InvalidOperationException>(
-                        () => context.Attach(
-                            new SingleKey { Id = 77, AlternateId = 67 })).Message);
-            }
+            Assert.Equal(
+                CoreStrings.IdentityConflictSensitive("SingleKey", "{Id: 77}"),
+                Assert.Throws<InvalidOperationException>(
+                    () => context.Attach(
+                        new SingleKey { Id = 77, AlternateId = 67 })).Message);
         }
 
         [ConditionalFact]
         public void Identity_conflict_throws_for_alternate_key_values_logged()
         {
-            using (var context = new SensitiveIdentityConflictContext())
-            {
-                context.Attach(
-                    new SingleKey { Id = 77, AlternateId = 66 });
+            using var context = new SensitiveIdentityConflictContext();
+            context.Attach(
+                new SingleKey { Id = 77, AlternateId = 66 });
 
-                Assert.Equal(
-                    CoreStrings.IdentityConflictSensitive("SingleKey", "{AlternateId: 66}"),
-                    Assert.Throws<InvalidOperationException>(
-                        () => context.Attach(
-                            new SingleKey { Id = 78, AlternateId = 66 })).Message);
-            }
+            Assert.Equal(
+                CoreStrings.IdentityConflictSensitive("SingleKey", "{AlternateId: 66}"),
+                Assert.Throws<InvalidOperationException>(
+                    () => context.Attach(
+                        new SingleKey { Id = 78, AlternateId = 66 })).Message);
         }
 
         [ConditionalFact]
         public void Identity_conflict_throws_for_composite_primary_key_values_logged()
         {
-            using (var context = new SensitiveIdentityConflictContext())
-            {
-                context.Attach(
-                    new CompositeKey { Id1 = 77, Id2 = 78, AlternateId1 = 66, AlternateId2 = 67 });
+            using var context = new SensitiveIdentityConflictContext();
+            context.Attach(
+                new CompositeKey
+                {
+                    Id1 = 77,
+                    Id2 = 78,
+                    AlternateId1 = 66,
+                    AlternateId2 = 67
+                });
 
-                Assert.Equal(
-                    CoreStrings.IdentityConflictSensitive("CompositeKey", "{Id1: 77, Id2: 78}"),
-                    Assert.Throws<InvalidOperationException>(
-                        () => context.Attach(
-                            new CompositeKey { Id1 = 77, Id2 = 78, AlternateId1 = 66, AlternateId2 = 68 })).Message);
-            }
+            Assert.Equal(
+                CoreStrings.IdentityConflictSensitive("CompositeKey", "{Id1: 77, Id2: 78}"),
+                Assert.Throws<InvalidOperationException>(
+                    () => context.Attach(
+                        new CompositeKey
+                        {
+                            Id1 = 77,
+                            Id2 = 78,
+                            AlternateId1 = 66,
+                            AlternateId2 = 68
+                        })).Message);
         }
 
         [ConditionalFact]
         public void Identity_conflict_throws_for_composite_alternate_key_values_logged()
         {
-            using (var context = new SensitiveIdentityConflictContext())
-            {
-                context.Attach(
-                    new CompositeKey { Id1 = 77, Id2 = 78, AlternateId1 = 66, AlternateId2 = 67 });
+            using var context = new SensitiveIdentityConflictContext();
+            context.Attach(
+                new CompositeKey
+                {
+                    Id1 = 77,
+                    Id2 = 78,
+                    AlternateId1 = 66,
+                    AlternateId2 = 67
+                });
 
-                Assert.Equal(
-                    CoreStrings.IdentityConflictSensitive("CompositeKey", "{AlternateId1: 66, AlternateId2: 67}"),
-                    Assert.Throws<InvalidOperationException>(
-                        () => context.Attach(
-                            new CompositeKey { Id1 = 77, Id2 = 79, AlternateId1 = 66, AlternateId2 = 67 })).Message);
-            }
+            Assert.Equal(
+                CoreStrings.IdentityConflictSensitive("CompositeKey", "{AlternateId1: 66, AlternateId2: 67}"),
+                Assert.Throws<InvalidOperationException>(
+                    () => context.Attach(
+                        new CompositeKey
+                        {
+                            Id1 = 77,
+                            Id2 = 79,
+                            AlternateId1 = 66,
+                            AlternateId2 = 67
+                        })).Message);
         }
 
         [ConditionalFact]
         public void Identity_null_throws_for_primary_key()
         {
-            using (var context = new IdentityConflictContext())
-            {
-                Assert.Equal(
-                    CoreStrings.InvalidKeyValue("SingleKey", "Id"),
-                    Assert.Throws<InvalidOperationException>(
-                        () => context.Attach(
-                            new SingleKey { Id = null, AlternateId = 67 })).Message);
-            }
+            using var context = new IdentityConflictContext();
+            Assert.Equal(
+                CoreStrings.InvalidKeyValue("SingleKey", "Id"),
+                Assert.Throws<InvalidOperationException>(
+                    () => context.Attach(
+                        new SingleKey { Id = null, AlternateId = 67 })).Message);
         }
 
         [ConditionalFact]
         public void Identity_null_throws_for_alternate_key()
         {
-            using (var context = new IdentityConflictContext())
-            {
-                Assert.Equal(
-                    CoreStrings.InvalidAlternateKeyValue("SingleKey", "AlternateId"),
-                    Assert.Throws<InvalidOperationException>(
-                        () => context.Attach(
-                            new SingleKey { Id = 77, AlternateId = null })).Message);
-            }
+            using var context = new IdentityConflictContext();
+            Assert.Equal(
+                CoreStrings.InvalidAlternateKeyValue("SingleKey", "AlternateId"),
+                Assert.Throws<InvalidOperationException>(
+                    () => context.Attach(
+                        new SingleKey { Id = 77, AlternateId = null })).Message);
         }
 
         [ConditionalFact]
         public void Identity_null_throws_for_composite_primary_key()
         {
-            using (var context = new IdentityConflictContext())
-            {
-                Assert.Equal(
-                    CoreStrings.InvalidKeyValue("CompositeKey", "Id2"),
-                    Assert.Throws<InvalidOperationException>(
-                        () => context.Attach(
-                            new CompositeKey { Id1 = 77, Id2 = null, AlternateId1 = 66, AlternateId2 = 68 })).Message);
-            }
+            using var context = new IdentityConflictContext();
+            Assert.Equal(
+                CoreStrings.InvalidKeyValue("CompositeKey", "Id2"),
+                Assert.Throws<InvalidOperationException>(
+                    () => context.Attach(
+                        new CompositeKey
+                        {
+                            Id1 = 77,
+                            Id2 = null,
+                            AlternateId1 = 66,
+                            AlternateId2 = 68
+                        })).Message);
         }
 
         [ConditionalFact]
         public void Identity_null_throws_for_composite_alternate_key()
         {
-            using (var context = new IdentityConflictContext())
-            {
-                Assert.Equal(
-                    CoreStrings.InvalidAlternateKeyValue("CompositeKey", "AlternateId2"),
-                    Assert.Throws<InvalidOperationException>(
-                        () => context.Attach(
-                            new CompositeKey { Id1 = 77, Id2 = 79, AlternateId1 = 66, AlternateId2 = null })).Message);
-            }
+            using var context = new IdentityConflictContext();
+            Assert.Equal(
+                CoreStrings.InvalidAlternateKeyValue("CompositeKey", "AlternateId2"),
+                Assert.Throws<InvalidOperationException>(
+                    () => context.Attach(
+                        new CompositeKey
+                        {
+                            Id1 = 77,
+                            Id2 = 79,
+                            AlternateId1 = 66,
+                            AlternateId2 = null
+                        })).Message);
         }
 
         private class SensitiveIdentityConflictContext : IdentityConflictContext
@@ -483,8 +519,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             }
 
             public void KeyPropertyChanged(
-                InternalEntityEntry entry, IProperty property, IReadOnlyList<IKey> containingPrincipalKeys,
-                IReadOnlyList<IForeignKey> containingForeignKeys,
+                InternalEntityEntry entry, IProperty property, IEnumerable<IKey> containingPrincipalKeys,
+                IEnumerable<IForeignKey> containingForeignKeys,
                 object oldValue, object newValue)
             {
             }
@@ -512,11 +548,26 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             var stateManager = contextServices.GetRequiredService<IStateManager>();
 
             var entry1 = stateManager.GetOrCreateEntry(
-                new Category { Id = 77, Name = "Beverages", PrincipalId = 777 });
+                new Category
+                {
+                    Id = 77,
+                    Name = "Beverages",
+                    PrincipalId = 777
+                });
             var entry2 = stateManager.GetOrCreateEntry(
-                new Category { Id = 78, Name = "Foods", PrincipalId = 778 });
+                new Category
+                {
+                    Id = 78,
+                    Name = "Foods",
+                    PrincipalId = 778
+                });
             var entry3 = stateManager.GetOrCreateEntry(
-                new Category { Id = 79, Name = "Stuff", PrincipalId = 779 });
+                new Category
+                {
+                    Id = 79,
+                    Name = "Stuff",
+                    PrincipalId = 779
+                });
 
             entry1.SetEntityState(EntityState.Unchanged);
             entry2.SetEntityState(EntityState.Unchanged);

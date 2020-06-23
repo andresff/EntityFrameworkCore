@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
 // ReSharper disable UnusedParameter.Local
@@ -36,6 +37,8 @@ namespace Microsoft.EntityFrameworkCore.TestModels.Northwind
 
         public virtual List<Order> Orders { get; set; }
 
+        [JsonIgnore]
+        [Newtonsoft.Json.JsonIgnore]
         public NorthwindContext Context { get; set; }
 
         [NotMapped]
@@ -53,7 +56,7 @@ namespace Microsoft.EntityFrameworkCore.TestModels.Northwind
             return ReferenceEquals(this, obj)
                 ? true
                 : obj.GetType() == GetType()
-                  && Equals((Customer)obj);
+                && Equals((Customer)obj);
         }
 
         public static bool operator ==(Customer left, Customer right) => Equals(left, right);

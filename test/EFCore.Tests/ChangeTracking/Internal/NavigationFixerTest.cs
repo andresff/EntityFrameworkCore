@@ -21,21 +21,19 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         [ConditionalFact]
         public void Does_not_throw_if_Add_during_fixup()
         {
-            using (var context = new FixupContext())
-            {
-                var blog1 = new Blog { Id = 1 };
-                var blog2 = new Blog { Id = 2 };
+            using var context = new FixupContext();
+            var blog1 = new Blog { Id = 1 };
+            var blog2 = new Blog { Id = 2 };
 
-                var post1 = context.Add(
-                    new Post { BlogId = 2 }).Entity;
+            var post1 = context.Add(
+                new Post { BlogId = 2 }).Entity;
 
-                blog1.Posts.Add(post1);
-                blog1.Posts.Add(
-                    new Post { BlogId = 2 });
+            blog1.Posts.Add(post1);
+            blog1.Posts.Add(
+                new Post { BlogId = 2 });
 
-                context.Add(blog2);
-                context.Add(blog1);
-            }
+            context.Add(blog2);
+            context.Add(blog1);
         }
 
         private class FixupContext : DbContext
@@ -841,14 +839,62 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             var review3 = new ProductReview { ProductId = 2, ReviewId = reviewId1 };
             var review4 = new ProductReview { ProductId = 2, ReviewId = reviewId2 };
 
-            var tag1 = new ProductTag { Id = 1, ProductId = 1, PhotoId = "Photo1", ReviewId = reviewId1 };
-            var tag2 = new ProductTag { Id = 2, ProductId = 1, PhotoId = "Photo1", ReviewId = reviewId2 };
-            var tag3 = new ProductTag { Id = 3, ProductId = 1, PhotoId = "Photo2", ReviewId = reviewId1 };
-            var tag4 = new ProductTag { Id = 4, ProductId = 1, PhotoId = "Photo2", ReviewId = reviewId2 };
-            var tag5 = new ProductTag { Id = 5, ProductId = 2, PhotoId = "Photo1", ReviewId = reviewId1 };
-            var tag6 = new ProductTag { Id = 6, ProductId = 2, PhotoId = "Photo1", ReviewId = reviewId2 };
-            var tag7 = new ProductTag { Id = 7, ProductId = 2, PhotoId = "Photo2", ReviewId = reviewId1 };
-            var tag8 = new ProductTag { Id = 8, ProductId = 2, PhotoId = "Photo2", ReviewId = reviewId2 };
+            var tag1 = new ProductTag
+            {
+                Id = 1,
+                ProductId = 1,
+                PhotoId = "Photo1",
+                ReviewId = reviewId1
+            };
+            var tag2 = new ProductTag
+            {
+                Id = 2,
+                ProductId = 1,
+                PhotoId = "Photo1",
+                ReviewId = reviewId2
+            };
+            var tag3 = new ProductTag
+            {
+                Id = 3,
+                ProductId = 1,
+                PhotoId = "Photo2",
+                ReviewId = reviewId1
+            };
+            var tag4 = new ProductTag
+            {
+                Id = 4,
+                ProductId = 1,
+                PhotoId = "Photo2",
+                ReviewId = reviewId2
+            };
+            var tag5 = new ProductTag
+            {
+                Id = 5,
+                ProductId = 2,
+                PhotoId = "Photo1",
+                ReviewId = reviewId1
+            };
+            var tag6 = new ProductTag
+            {
+                Id = 6,
+                ProductId = 2,
+                PhotoId = "Photo1",
+                ReviewId = reviewId2
+            };
+            var tag7 = new ProductTag
+            {
+                Id = 7,
+                ProductId = 2,
+                PhotoId = "Photo2",
+                ReviewId = reviewId1
+            };
+            var tag8 = new ProductTag
+            {
+                Id = 8,
+                ProductId = 2,
+                PhotoId = "Photo2",
+                ReviewId = reviewId2
+            };
 
             var photoEntry1 = manager.StartTracking(manager.GetOrCreateEntry(photo1));
             var photoEntry2 = manager.StartTracking(manager.GetOrCreateEntry(photo2));

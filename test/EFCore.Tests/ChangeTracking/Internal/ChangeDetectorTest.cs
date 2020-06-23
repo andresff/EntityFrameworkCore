@@ -183,44 +183,42 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         [InlineData(false, false, false)]
         public void Can_insert_with_array_comparer(bool useTypeMapping, bool useStateChange, bool nullValue)
         {
-            using (var context = useTypeMapping ? new BaxterWithMappingContext() : new BaxterContext())
+            using var context = useTypeMapping ? new BaxterWithMappingContext() : new BaxterContext();
+            var value = nullValue ? null : new[] { 1, 2, 3, 4 };
+
+            var baxter = new Baxter { Id = Guid.NewGuid(), Demands = value };
+
+            var entityEntry = context.Entry(baxter);
+
+            if (useStateChange)
             {
-                var value = nullValue ? null : new[] { 1, 2, 3, 4 };
-
-                var baxter = new Baxter { Id = Guid.NewGuid(), Demands = value };
-
-                var entityEntry = context.Entry(baxter);
-
-                if (useStateChange)
-                {
-                    entityEntry.State = EntityState.Added;
-                }
-                else
-                {
-                    context.Add(baxter);
-                }
-
-                Assert.Equal(EntityState.Added, entityEntry.State);
-                Assert.Equal(value, entityEntry.Property(e => e.Demands).CurrentValue);
-
-                context.SaveChanges();
-
-                Assert.Equal(EntityState.Unchanged, entityEntry.State);
-
-                if (nullValue)
-                {
-                    baxter.Demands = new[] { 1, 767, 3, 4 };
-                }
-                else
-                {
-                    baxter.Demands[1] = 767;
-                }
-
-                context.ChangeTracker.DetectChanges();
-
-                Assert.Equal(EntityState.Modified, entityEntry.State);
-                Assert.Equal(new[] { 1, 767, 3, 4 }, entityEntry.Property(e => e.Demands).CurrentValue);
+                entityEntry.State = EntityState.Added;
             }
+            else
+            {
+                context.Add(baxter);
+            }
+
+            Assert.Equal(EntityState.Added, entityEntry.State);
+            Assert.Equal(value, entityEntry.Property(e => e.Demands).CurrentValue);
+
+            context.SaveChanges();
+
+            Assert.Equal(EntityState.Unchanged, entityEntry.State);
+
+            if (nullValue)
+            {
+                baxter.Demands = new[] { 1, 767, 3, 4 };
+            }
+            else
+            {
+                baxter.Demands[1] = 767;
+            }
+
+            context.ChangeTracker.DetectChanges();
+
+            Assert.Equal(EntityState.Modified, entityEntry.State);
+            Assert.Equal(new[] { 1, 767, 3, 4 }, entityEntry.Property(e => e.Demands).CurrentValue);
         }
 
         [ConditionalTheory]
@@ -228,27 +226,25 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         [InlineData(false)]
         public void Detects_scalar_property_change_with_custom_comparer(bool useTypeMapping)
         {
-            using (var context = useTypeMapping ? new BaxterWithMappingContext() : new BaxterContext())
-            {
-                var baxter = context.Attach(
-                    new Baxter { Id = Guid.NewGuid(), Demands = new[] { 1, 2, 3, 4 } }).Entity;
+            using var context = useTypeMapping ? new BaxterWithMappingContext() : new BaxterContext();
+            var baxter = context.Attach(
+                new Baxter { Id = Guid.NewGuid(), Demands = new[] { 1, 2, 3, 4 } }).Entity;
 
-                baxter.Demands[2] = 33;
+            baxter.Demands[2] = 33;
 
-                var entityEntry = context.Entry(baxter);
-                AssertDetected(entityEntry, entityEntry.Property(e => e.Demands));
+            var entityEntry = context.Entry(baxter);
+            AssertDetected(entityEntry, entityEntry.Property(e => e.Demands));
 
-                context.SaveChanges();
+            context.SaveChanges();
 
-                Assert.Equal(EntityState.Unchanged, entityEntry.State);
+            Assert.Equal(EntityState.Unchanged, entityEntry.State);
 
-                baxter.Demands[1] = 767;
+            baxter.Demands[1] = 767;
 
-                context.ChangeTracker.DetectChanges();
+            context.ChangeTracker.DetectChanges();
 
-                Assert.Equal(EntityState.Modified, entityEntry.State);
-                Assert.Equal(new[] { 1, 767, 3, 4 }, entityEntry.Property(e => e.Demands).CurrentValue);
-            }
+            Assert.Equal(EntityState.Modified, entityEntry.State);
+            Assert.Equal(new[] { 1, 767, 3, 4 }, entityEntry.Property(e => e.Demands).CurrentValue);
         }
 
         [ConditionalTheory]
@@ -256,32 +252,30 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
         [InlineData(false)]
         public void Detects_scalar_shadow_property_change_with_custom_comparer(bool useTypeMapping)
         {
-            using (var context = useTypeMapping ? new BaxterWithMappingContext() : new BaxterContext())
-            {
-                var entityEntry = context.Entry(
-                    new Baxter { Id = Guid.NewGuid() });
-                entityEntry.Property("ShadyDemands").CurrentValue = new[] { 1, 2, 3, 4 };
-                entityEntry.State = EntityState.Unchanged;
+            using var context = useTypeMapping ? new BaxterWithMappingContext() : new BaxterContext();
+            var entityEntry = context.Entry(
+                new Baxter { Id = Guid.NewGuid() });
+            entityEntry.Property("ShadyDemands").CurrentValue = new[] { 1, 2, 3, 4 };
+            entityEntry.State = EntityState.Unchanged;
 
-                var propertyEntry = entityEntry.Property<int[]>("ShadyDemands");
+            var propertyEntry = entityEntry.Property<int[]>("ShadyDemands");
 
-                propertyEntry.CurrentValue[2] = 33;
+            propertyEntry.CurrentValue[2] = 33;
 
-                context.ChangeTracker.DetectChanges(); // Needed because array is being mutated
+            context.ChangeTracker.DetectChanges(); // Needed because array is being mutated
 
-                AssertDetected(entityEntry, propertyEntry);
+            AssertDetected(entityEntry, propertyEntry);
 
-                context.SaveChanges();
+            context.SaveChanges();
 
-                Assert.Equal(EntityState.Unchanged, entityEntry.State);
+            Assert.Equal(EntityState.Unchanged, entityEntry.State);
 
-                propertyEntry.CurrentValue[1] = 767;
+            propertyEntry.CurrentValue[1] = 767;
 
-                context.ChangeTracker.DetectChanges();
+            context.ChangeTracker.DetectChanges();
 
-                Assert.Equal(EntityState.Modified, entityEntry.State);
-                Assert.Equal(new[] { 1, 767, 3, 4 }, propertyEntry.CurrentValue);
-            }
+            Assert.Equal(EntityState.Modified, entityEntry.State);
+            Assert.Equal(new[] { 1, 767, 3, 4 }, propertyEntry.CurrentValue);
         }
 
         // ReSharper disable once ParameterOnlyUsedForPreconditionCheck.Local
@@ -416,8 +410,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             Assert.Same(entry, testListener.KeyChange.Item1);
             Assert.Same(entry.EntityType.FindProperty("PrincipalId"), testListener.KeyChange.Item2);
-            Assert.Equal(1, testListener.KeyChange.Item3.Count);
-            Assert.Equal(0, testListener.KeyChange.Item4.Count);
+            Assert.Single(testListener.KeyChange.Item3);
+            Assert.Empty(testListener.KeyChange.Item4);
             Assert.Equal(77, testListener.KeyChange.Item5);
             Assert.Equal(78, testListener.KeyChange.Item6);
 
@@ -449,8 +443,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             Assert.Same(entry, testListener.KeyChange.Item1);
             Assert.Same(entry.EntityType.FindProperty("PrincipalId"), testListener.KeyChange.Item2);
-            Assert.Equal(1, testListener.KeyChange.Item3.Count);
-            Assert.Equal(0, testListener.KeyChange.Item4.Count);
+            Assert.Single(testListener.KeyChange.Item3);
+            Assert.Empty(testListener.KeyChange.Item4);
             Assert.Equal(78, testListener.KeyChange.Item5);
             Assert.Equal(77, testListener.KeyChange.Item6);
 
@@ -481,8 +475,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             Assert.Same(entry, testListener.KeyChange.Item1);
             Assert.Same(property, testListener.KeyChange.Item2);
-            Assert.Equal(1, testListener.KeyChange.Item3.Count);
-            Assert.Equal(0, testListener.KeyChange.Item4.Count);
+            Assert.Single(testListener.KeyChange.Item3);
+            Assert.Empty(testListener.KeyChange.Item4);
             Assert.Equal(77, testListener.KeyChange.Item5);
             Assert.Equal(78, testListener.KeyChange.Item6);
 
@@ -498,7 +492,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             var stateManager = contextServices.GetRequiredService<IStateManager>();
             var changeDetector = contextServices.GetRequiredService<IChangeDetector>();
 
-            var category = new Category { Id = -1, TagId = 777, PrincipalId = 778 };
+            var category = new Category
+            {
+                Id = -1,
+                TagId = 777,
+                PrincipalId = 778
+            };
             var entry = stateManager.GetOrCreateEntry(category);
             entry.SetEntityState(EntityState.Added);
 
@@ -510,8 +509,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             Assert.Same(entry, testListener.KeyChange.Item1);
             Assert.Same(entry.EntityType.FindProperty("Id"), testListener.KeyChange.Item2);
-            Assert.Equal(1, testListener.KeyChange.Item3.Count);
-            Assert.Equal(0, testListener.KeyChange.Item4.Count);
+            Assert.Single(testListener.KeyChange.Item3);
+            Assert.Empty(testListener.KeyChange.Item4);
             Assert.Equal(-1, testListener.KeyChange.Item5);
             Assert.Equal(78, testListener.KeyChange.Item6);
 
@@ -527,7 +526,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             var stateManager = contextServices.GetRequiredService<IStateManager>();
             var changeDetector = contextServices.GetRequiredService<IChangeDetector>();
 
-            var category = new Category { Id = -1, TagId = 777, PrincipalId = 778 };
+            var category = new Category
+            {
+                Id = -1,
+                TagId = 777,
+                PrincipalId = 778
+            };
             var entry = stateManager.GetOrCreateEntry(category);
             entry.SetEntityState(EntityState.Added);
 
@@ -542,8 +546,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             Assert.Same(entry, testListener.KeyChange.Item1);
             Assert.Same(entry.EntityType.FindProperty("Id"), testListener.KeyChange.Item2);
-            Assert.Equal(1, testListener.KeyChange.Item3.Count);
-            Assert.Equal(0, testListener.KeyChange.Item4.Count);
+            Assert.Single(testListener.KeyChange.Item3);
+            Assert.Empty(testListener.KeyChange.Item4);
             Assert.Equal(-1, testListener.KeyChange.Item5);
             Assert.Equal(78, testListener.KeyChange.Item6);
 
@@ -620,8 +624,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             Assert.Same(entry, testListener.KeyChange.Item1);
             Assert.Same(entry.EntityType.FindProperty("DependentId"), testListener.KeyChange.Item2);
-            Assert.Equal(0, testListener.KeyChange.Item3.Count);
-            Assert.Equal(1, testListener.KeyChange.Item4.Count);
+            Assert.Empty(testListener.KeyChange.Item3);
+            Assert.Single(testListener.KeyChange.Item4);
             Assert.Equal(77, testListener.KeyChange.Item5);
             Assert.Equal(78, testListener.KeyChange.Item6);
 
@@ -653,8 +657,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             Assert.Same(entry, testListener.KeyChange.Item1);
             Assert.Same(entry.EntityType.FindProperty("DependentId"), testListener.KeyChange.Item2);
-            Assert.Equal(0, testListener.KeyChange.Item3.Count);
-            Assert.Equal(1, testListener.KeyChange.Item4.Count);
+            Assert.Empty(testListener.KeyChange.Item3);
+            Assert.Single(testListener.KeyChange.Item4);
             Assert.Equal(78, testListener.KeyChange.Item5);
             Assert.Equal(77, testListener.KeyChange.Item6);
 
@@ -684,8 +688,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             Assert.Same(entry, testListener.KeyChange.Item1);
             Assert.Same(property, testListener.KeyChange.Item2);
-            Assert.Equal(0, testListener.KeyChange.Item3.Count);
-            Assert.Equal(1, testListener.KeyChange.Item4.Count);
+            Assert.Empty(testListener.KeyChange.Item3);
+            Assert.Single(testListener.KeyChange.Item4);
             Assert.Equal(77, testListener.KeyChange.Item5);
             Assert.Equal(78, testListener.KeyChange.Item6);
 
@@ -750,7 +754,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             var stateManager = contextServices.GetRequiredService<IStateManager>();
 
             var originalCategory = new Category { Id = 77, PrincipalId = 1 };
-            var product = new Product { Id = Guid.NewGuid(), Category = originalCategory, DependentId = 1 };
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Category = originalCategory,
+                DependentId = 1
+            };
             var entry = stateManager.GetOrCreateEntry(product);
             entry.SetEntityState(EntityState.Unchanged);
 
@@ -783,14 +792,29 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             var changeDetector = contextServices.GetRequiredService<IChangeDetector>();
             var stateManager = contextServices.GetRequiredService<IStateManager>();
 
-            var originalCategory = new Category { Id = 77, PrincipalId = 1, TagId = 777 };
-            var product = new Product { Id = Guid.NewGuid(), Category = originalCategory, DependentId = 1 };
+            var originalCategory = new Category
+            {
+                Id = 77,
+                PrincipalId = 1,
+                TagId = 777
+            };
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Category = originalCategory,
+                DependentId = 1
+            };
             var entry = stateManager.GetOrCreateEntry(product);
             entry.SetEntityState(EntityState.Unchanged);
 
             var newCategory = useNull
                 ? null
-                : new Category { Id = 99, PrincipalId = 2, TagId = 778 };
+                : new Category
+                {
+                    Id = 99,
+                    PrincipalId = 2,
+                    TagId = 778
+                };
             product.Category = newCategory;
 
             changeDetector.DetectChanges(entry);
@@ -820,7 +844,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             var stateManager = contextServices.GetRequiredService<IStateManager>();
 
             var category = new Category { Id = 55, PrincipalId = 1 };
-            var product = new Product { Id = Guid.NewGuid(), Category = category, DependentId = 1 };
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Category = category,
+                DependentId = 1
+            };
             var entry = stateManager.GetOrCreateEntry(product);
             entry.SetEntityState(EntityState.Unchanged);
 
@@ -845,7 +874,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             var product1 = new Product { Id = Guid.NewGuid(), DependentId = 77 };
             var product2 = new Product { Id = Guid.NewGuid(), DependentId = 77 };
-            var category = new Category { Id = 1, PrincipalId = 77, Products = { product1, product2 } };
+            var category = new Category
+            {
+                Id = 1,
+                PrincipalId = 77,
+                Products = { product1, product2 }
+            };
             var entry = stateManager.GetOrCreateEntry(category);
             entry.SetEntityState(EntityState.Unchanged);
 
@@ -877,7 +911,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             var product1 = new Product { Id = Guid.NewGuid(), DependentId = 77 };
             var product2 = new Product { Id = Guid.NewGuid(), DependentId = 77 };
-            var category = new Category { Id = 1, PrincipalId = 77, Products = { product1, product2 } };
+            var category = new Category
+            {
+                Id = 1,
+                PrincipalId = 77,
+                Products = { product1, product2 }
+            };
             var entry = stateManager.GetOrCreateEntry(category);
             entry.SetEntityState(EntityState.Unchanged);
 
@@ -906,7 +945,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             var product1 = new Product { Id = Guid.NewGuid(), DependentId = 77 };
             var product2 = new Product { Id = Guid.NewGuid(), DependentId = 77 };
-            var category = new Category { Id = 1, PrincipalId = 77, Products = { product1, product2 } };
+            var category = new Category
+            {
+                Id = 1,
+                PrincipalId = 77,
+                Products = { product1, product2 }
+            };
             var entry = stateManager.GetOrCreateEntry(category);
             entry.SetEntityState(EntityState.Unchanged);
 
@@ -977,7 +1021,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             var stateManager = contextServices.GetRequiredService<IStateManager>();
 
             var category = new CategoryWithChanged { Id = 1 };
-            var product = new ProductWithChanged { Id = 2, Category = category, DependentId = 1 };
+            var product = new ProductWithChanged
+            {
+                Id = 2,
+                Category = category,
+                DependentId = 1
+            };
             var entry = stateManager.GetOrCreateEntry(product);
             entry.SetEntityState(EntityState.Unchanged);
 
@@ -1031,7 +1080,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             var stateManager = contextServices.GetRequiredService<IStateManager>();
 
             var originalCategory = new Category { Id = 77, PrincipalId = 1 };
-            var product = new Product { Id = Guid.NewGuid(), Category = originalCategory, DependentId = 1 };
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Category = originalCategory,
+                DependentId = 1
+            };
             var entry = stateManager.GetOrCreateEntry(product);
             entry.SetEntityState(EntityState.Unchanged);
 
@@ -1054,7 +1108,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             var changeDetector = contextServices.GetRequiredService<IChangeDetector>();
             var stateManager = contextServices.GetRequiredService<IStateManager>();
 
-            var category = new Category { Id = 1, TagId = 77, PrincipalId = 778 };
+            var category = new Category
+            {
+                Id = 1,
+                TagId = 77,
+                PrincipalId = 778
+            };
             var entry = stateManager.GetOrCreateEntry(category);
             entry.SetEntityState(EntityState.Unchanged);
 
@@ -1102,7 +1161,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             var product1 = new Product { Id = Guid.NewGuid(), DependentId = 77 };
             var product2 = new Product { Id = Guid.NewGuid(), DependentId = 77 };
-            var category = new Category { Id = 1, PrincipalId = 77, Products = { product1, product2 } };
+            var category = new Category
+            {
+                Id = 1,
+                PrincipalId = 77,
+                Products = { product1, product2 }
+            };
             var entry = stateManager.GetOrCreateEntry(category);
             entry.SetEntityState(EntityState.Unchanged);
 
@@ -1181,8 +1245,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             Assert.Same(entry, testListener.KeyChange.Item1);
             Assert.Same(entry.EntityType.FindProperty("PrincipalId"), testListener.KeyChange.Item2);
-            Assert.Equal(1, testListener.KeyChange.Item3.Count);
-            Assert.Equal(0, testListener.KeyChange.Item4.Count);
+            Assert.Single(testListener.KeyChange.Item3);
+            Assert.Empty(testListener.KeyChange.Item4);
             Assert.Equal(77, testListener.KeyChange.Item5);
             Assert.Equal(78, testListener.KeyChange.Item6);
 
@@ -1208,8 +1272,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             Assert.Same(entry, testListener.KeyChange.Item1);
             Assert.Same(entry.EntityType.FindProperty("PrincipalId"), testListener.KeyChange.Item2);
-            Assert.Equal(1, testListener.KeyChange.Item3.Count);
-            Assert.Equal(0, testListener.KeyChange.Item4.Count);
+            Assert.Single(testListener.KeyChange.Item3);
+            Assert.Empty(testListener.KeyChange.Item4);
             Assert.Equal(78, testListener.KeyChange.Item5);
             Assert.Equal(77, testListener.KeyChange.Item6);
 
@@ -1224,7 +1288,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             var stateManager = contextServices.GetRequiredService<IStateManager>();
 
-            var category = new NotifyingCategory { Id = -1, TagId = 777, PrincipalId = 778 };
+            var category = new NotifyingCategory
+            {
+                Id = -1,
+                TagId = 777,
+                PrincipalId = 778
+            };
             var entry = stateManager.GetOrCreateEntry(category);
             entry.SetEntityState(EntityState.Added);
 
@@ -1234,8 +1303,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             Assert.Same(entry, testListener.KeyChange.Item1);
             Assert.Same(entry.EntityType.FindProperty("Id"), testListener.KeyChange.Item2);
-            Assert.Equal(1, testListener.KeyChange.Item3.Count);
-            Assert.Equal(0, testListener.KeyChange.Item4.Count);
+            Assert.Single(testListener.KeyChange.Item3);
+            Assert.Empty(testListener.KeyChange.Item4);
             Assert.Equal(-1, testListener.KeyChange.Item5);
             Assert.Equal(78, testListener.KeyChange.Item6);
 
@@ -1280,8 +1349,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             Assert.Same(entry, testListener.KeyChange.Item1);
             Assert.Same(entry.EntityType.FindProperty("DependentId"), testListener.KeyChange.Item2);
-            Assert.Equal(0, testListener.KeyChange.Item3.Count);
-            Assert.Equal(1, testListener.KeyChange.Item4.Count);
+            Assert.Empty(testListener.KeyChange.Item3);
+            Assert.Single(testListener.KeyChange.Item4);
             Assert.Equal(77, testListener.KeyChange.Item5);
             Assert.Equal(78, testListener.KeyChange.Item6);
 
@@ -1307,8 +1376,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             Assert.Same(entry, testListener.KeyChange.Item1);
             Assert.Same(entry.EntityType.FindProperty("DependentId"), testListener.KeyChange.Item2);
-            Assert.Equal(0, testListener.KeyChange.Item3.Count);
-            Assert.Equal(1, testListener.KeyChange.Item4.Count);
+            Assert.Empty(testListener.KeyChange.Item3);
+            Assert.Single(testListener.KeyChange.Item4);
             Assert.Equal(78, testListener.KeyChange.Item5);
             Assert.Equal(77, testListener.KeyChange.Item6);
 
@@ -1344,7 +1413,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             var stateManager = contextServices.GetRequiredService<IStateManager>();
 
             var originalCategory = new NotifyingCategory { Id = 66, PrincipalId = 1 };
-            var product = new NotifyingProduct { Id = Guid.NewGuid(), Category = originalCategory, DependentId = 1 };
+            var product = new NotifyingProduct
+            {
+                Id = Guid.NewGuid(),
+                Category = originalCategory,
+                DependentId = 1
+            };
             var entry = stateManager.GetOrCreateEntry(product);
             entry.SetEntityState(EntityState.Unchanged);
 
@@ -1372,14 +1446,29 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             var stateManager = contextServices.GetRequiredService<IStateManager>();
 
-            var originalCategory = new NotifyingCategory { Id = 77, PrincipalId = 1, TagId = 777 };
-            var product = new NotifyingProduct { Id = Guid.NewGuid(), Category = originalCategory, DependentId = 1 };
+            var originalCategory = new NotifyingCategory
+            {
+                Id = 77,
+                PrincipalId = 1,
+                TagId = 777
+            };
+            var product = new NotifyingProduct
+            {
+                Id = Guid.NewGuid(),
+                Category = originalCategory,
+                DependentId = 1
+            };
             var entry = stateManager.GetOrCreateEntry(product);
             entry.SetEntityState(EntityState.Unchanged);
 
             var newCategory = useNull
                 ? null
-                : new NotifyingCategory { Id = 78, PrincipalId = 2, TagId = 778 };
+                : new NotifyingCategory
+                {
+                    Id = 78,
+                    PrincipalId = 2,
+                    TagId = 778
+                };
 
             product.Category = newCategory;
             product.Category = originalCategory;
@@ -1404,7 +1493,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             var stateManager = contextServices.GetRequiredService<IStateManager>();
 
             var category = new NotifyingCategory { Id = 77, PrincipalId = 1 };
-            var product = new NotifyingProduct { Id = Guid.NewGuid(), Category = category, DependentId = 1 };
+            var product = new NotifyingProduct
+            {
+                Id = Guid.NewGuid(),
+                Category = category,
+                DependentId = 1
+            };
             var entry = stateManager.GetOrCreateEntry(product);
             entry.SetEntityState(EntityState.Unchanged);
 
@@ -1426,7 +1520,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             var product1 = new NotifyingProduct { Id = Guid.NewGuid(), DependentId = 77 };
             var product2 = new NotifyingProduct { Id = Guid.NewGuid(), DependentId = 77 };
-            var category = new NotifyingCategory { Id = 1, PrincipalId = 77, Products = { product1, product2 } };
+            var category = new NotifyingCategory
+            {
+                Id = 1,
+                PrincipalId = 77,
+                Products = { product1, product2 }
+            };
             var entry = stateManager.GetOrCreateEntry(category);
             entry.SetEntityState(EntityState.Unchanged);
 
@@ -1453,7 +1552,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             var product1 = new NotifyingProduct { Id = Guid.NewGuid(), DependentId = 77 };
             var product2 = new NotifyingProduct { Id = Guid.NewGuid(), DependentId = 77 };
-            var category = new NotifyingCategory { Id = 1, PrincipalId = 77, Products = { product1, product2 } };
+            var category = new NotifyingCategory
+            {
+                Id = 1,
+                PrincipalId = 77,
+                Products = { product1, product2 }
+            };
             var entry = stateManager.GetOrCreateEntry(category);
             entry.SetEntityState(EntityState.Unchanged);
 
@@ -1481,7 +1585,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             var stateManager = contextServices.GetRequiredService<IStateManager>();
 
             var originalCategory = new NotifyingCategory { PrincipalId = 1 };
-            var product = new NotifyingProduct { Id = Guid.NewGuid(), Category = originalCategory, DependentId = 1 };
+            var product = new NotifyingProduct
+            {
+                Id = Guid.NewGuid(),
+                Category = originalCategory,
+                DependentId = 1
+            };
             var entry = stateManager.GetOrCreateEntry(product);
             entry.SetEntityState(EntityState.Unchanged);
 
@@ -1501,7 +1610,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             var stateManager = contextServices.GetRequiredService<IStateManager>();
 
-            var category = new NotifyingCategory { Id = 1, TagId = 77, PrincipalId = 777 };
+            var category = new NotifyingCategory
+            {
+                Id = 1,
+                TagId = 77,
+                PrincipalId = 777
+            };
             var entry = stateManager.GetOrCreateEntry(category);
             entry.SetEntityState(EntityState.Unchanged);
 
@@ -1544,7 +1658,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
 
             var product1 = new NotifyingProduct { Id = Guid.NewGuid(), DependentId = 77 };
             var product2 = new NotifyingProduct { Id = Guid.NewGuid(), DependentId = 77 };
-            var category = new NotifyingCategory { Id = 1, PrincipalId = 77, Products = { product1, product2 } };
+            var category = new NotifyingCategory
+            {
+                Id = 1,
+                PrincipalId = 77,
+                Products = { product1, product2 }
+            };
             var entry = stateManager.GetOrCreateEntry(category);
             entry.SetEntityState(EntityState.Unchanged);
 
@@ -1995,7 +2114,7 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             {
             }
 
-            public Tuple<InternalEntityEntry, IProperty, IReadOnlyList<IKey>, IReadOnlyList<IForeignKey>, object, object> KeyChange
+            public Tuple<InternalEntityEntry, IProperty, IEnumerable<IKey>, IEnumerable<IForeignKey>, object, object> KeyChange
             {
                 get;
                 set;
@@ -2025,8 +2144,8 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             public override void KeyPropertyChanged(
                 InternalEntityEntry entry,
                 IProperty property,
-                IReadOnlyList<IKey> containingPrincipalKeys,
-                IReadOnlyList<IForeignKey> containingForeignKeys,
+                IEnumerable<IKey> containingPrincipalKeys,
+                IEnumerable<IForeignKey> containingForeignKeys,
                 object oldValue,
                 object newValue)
             {

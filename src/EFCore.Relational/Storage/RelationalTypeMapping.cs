@@ -12,7 +12,6 @@ using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.EntityFrameworkCore.Utilities;
 
-#pragma warning disable 618
 namespace Microsoft.EntityFrameworkCore.Storage
 {
     /// <summary>
@@ -223,7 +222,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// </summary>
         public static readonly RelationalTypeMapping NullMapping = new NullTypeMapping("NULL");
 
-        private class NullTypeMapping : RelationalTypeMapping
+        private sealed class NullTypeMapping : RelationalTypeMapping
         {
             public NullTypeMapping(string storeType)
                 : base(storeType, typeof(object))
@@ -279,18 +278,18 @@ namespace Microsoft.EntityFrameworkCore.Storage
                 storeType = storeTypeNameBase + "(" + size + ")";
             }
             else if (parameters.StoreTypePostfix == StoreTypePostfix.PrecisionAndScale
-                     || parameters.StoreTypePostfix == StoreTypePostfix.Precision)
+                || parameters.StoreTypePostfix == StoreTypePostfix.Precision)
             {
                 var precision = parameters.Precision;
                 if (precision != null)
                 {
                     var scale = parameters.Scale;
                     storeType = storeTypeNameBase
-                                + "("
-                                + (scale == null || parameters.StoreTypePostfix == StoreTypePostfix.Precision
-                                    ? precision.ToString()
-                                    : precision + "," + scale)
-                                + ")";
+                        + "("
+                        + (scale == null || parameters.StoreTypePostfix == StoreTypePostfix.Precision
+                            ? precision.ToString()
+                            : precision + "," + scale)
+                        + ")";
                 }
             }
 
@@ -316,15 +315,21 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// <param name="dbType"> The <see cref="System.Data.DbType" /> to be used. </param>
         /// <param name="unicode"> A value indicating whether the type should handle Unicode data or not. </param>
         /// <param name="size"> The size of data the property is configured to store, or null if no size is configured. </param>
+        /// <param name="fixedLength"> A value indicating whether the type has fixed length data or not. </param>
+        /// <param name="precision"> The precision of data the property is configured to store, or null if no precision is configured. </param>
+        /// <param name="scale"> The scale of data the property is configured to store, or null if no scale is configured. </param>
         protected RelationalTypeMapping(
             [NotNull] string storeType,
             [NotNull] Type clrType,
             DbType? dbType = null,
             bool unicode = false,
-            int? size = null)
+            int? size = null,
+            bool fixedLength = false,
+            int? precision = null,
+            int? scale = null)
             : this(
                 new RelationalTypeMappingParameters(
-                    new CoreTypeMappingParameters(clrType), storeType, StoreTypePostfix.None, dbType, unicode, size))
+                    new CoreTypeMappingParameters(clrType), storeType, StoreTypePostfix.None, dbType, unicode, size, fixedLength, precision, scale))
         {
         }
 
@@ -405,6 +410,16 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// </summary>
         public virtual int? Size => Parameters.Size;
 
+         /// <summary>
+        ///     Gets the precision of data the property is configured to store, or null if no precision is configured.
+        /// </summary>
+        public virtual int? Precision => Parameters.Precision;
+
+         /// <summary>
+        ///     Gets the scale of data the property is configured to store, or null if no scale is configured.
+        /// </summary>
+        public virtual int? Scale => Parameters.Scale;
+
         /// <summary>
         ///     Gets a value indicating whether the type is constrained to fixed-length data.
         /// </summary>
@@ -435,6 +450,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
             parameter.Direction = ParameterDirection.Input;
             parameter.ParameterName = name;
 
+            value = ConvertUnderlyingEnumValueToEnum(value);
             if (Converter != null)
             {
                 value = Converter.ConvertToProvider(value);
@@ -457,6 +473,15 @@ namespace Microsoft.EntityFrameworkCore.Storage
             return parameter;
         }
 
+        // Enum when compared to constant will always have value of integral type
+        // when enum would contain convert node. We remove the convert node but we also
+        // need to convert the integral value to enum value.
+        // This allows us to use converter on enum value or print enum value directly if supported by provider
+        private object ConvertUnderlyingEnumValueToEnum(object value)
+            => value?.GetType().IsInteger() == true && ClrType.UnwrapNullableType().IsEnum
+            ? Enum.ToObject(ClrType.UnwrapNullableType(), value)
+            : value;
+
         /// <summary>
         ///     Configures type information of a <see cref="DbParameter" />.
         /// </summary>
@@ -474,15 +499,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
         /// </returns>
         public virtual string GenerateSqlLiteral([CanBeNull] object value)
         {
-            // Enum when compared to constant will always have constant of integral type
-            // when enum would contain convert node. We remove the convert node but we also
-            // need to convert the integral value to enum value.
-            // This allows us to use converter on enum value or print enum value directly if supported by provider
-            if (value?.GetType().IsInteger() == true
-                && ClrType.UnwrapNullableType().IsEnum)
-            {
-                value = Enum.ToObject(ClrType.UnwrapNullableType(), value);
-            }
+            value = ConvertUnderlyingEnumValueToEnum(value);
 
             if (Converter != null)
             {
@@ -523,10 +540,18 @@ namespace Microsoft.EntityFrameworkCore.Storage
         {
             var type = (Converter?.ProviderClrType ?? ClrType).UnwrapNullableType();
 
-            return _getXMethods.TryGetValue(type, out var method)
+            return GetDataReaderMethod(type);
+        }
+
+        /// <summary>
+        ///     The method to use when reading values of the given type. The method must be defined
+        ///     on <see cref="DbDataReader" />.
+        /// </summary>
+        /// <returns> The method to use to read the value. </returns>
+        public static MethodInfo GetDataReaderMethod([NotNull] Type type)
+            => _getXMethods.TryGetValue(type, out var method)
                 ? method
                 : _getFieldValueMethod.MakeGenericMethod(type);
-        }
 
         /// <summary>
         ///     Gets a custom expression tree for reading the value from the input data reader

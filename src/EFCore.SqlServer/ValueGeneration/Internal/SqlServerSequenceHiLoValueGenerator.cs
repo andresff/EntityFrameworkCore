@@ -63,8 +63,9 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.ValueGeneration.Internal
                     .ExecuteScalar(
                         new RelationalCommandParameterObject(
                             _connection,
-                            null,
-                            null,
+                            parameterValues: null,
+                            readerColumns: null,
+                            context: null,
                             _commandLogger)),
                 typeof(long),
                 CultureInfo.InvariantCulture);
@@ -82,10 +83,12 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.ValueGeneration.Internal
                     .ExecuteScalarAsync(
                         new RelationalCommandParameterObject(
                             _connection,
-                            null,
-                            null,
+                            parameterValues: null,
+                            readerColumns: null,
+                            context: null,
                             _commandLogger),
-                        cancellationToken),
+                        cancellationToken)
+                    .ConfigureAwait(false),
                 typeof(long),
                 CultureInfo.InvariantCulture);
 

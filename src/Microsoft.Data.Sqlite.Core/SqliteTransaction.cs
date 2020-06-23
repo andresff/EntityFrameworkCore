@@ -12,6 +12,7 @@ namespace Microsoft.Data.Sqlite
     /// <summary>
     ///     Represents a transaction made against a SQLite database.
     /// </summary>
+    /// <seealso href="https://docs.microsoft.com/dotnet/standard/data/sqlite/transactions">Transactions</seealso>
     public class SqliteTransaction : DbTransaction
     {
         private SqliteConnection _connection;
@@ -21,7 +22,7 @@ namespace Microsoft.Data.Sqlite
         internal SqliteTransaction(SqliteConnection connection, IsolationLevel isolationLevel)
         {
             if ((isolationLevel == IsolationLevel.ReadUncommitted
-                 && connection.ConnectionOptions.Cache != SqliteCacheMode.Shared)
+                    && connection.ConnectionOptions.Cache != SqliteCacheMode.Shared)
                 || isolationLevel == IsolationLevel.ReadCommitted
                 || isolationLevel == IsolationLevel.RepeatableRead)
             {
@@ -78,7 +79,7 @@ namespace Microsoft.Data.Sqlite
                 : _isolationLevel != IsolationLevel.Unspecified
                     ? _isolationLevel
                     : (_connection.ConnectionOptions.Cache == SqliteCacheMode.Shared
-                       && _connection.ExecuteScalar<long>("PRAGMA read_uncommitted;") != 0)
+                        && _connection.ExecuteScalar<long>("PRAGMA read_uncommitted;") != 0)
                         ? IsolationLevel.ReadUncommitted
                         : IsolationLevel.Serializable;
 
@@ -116,7 +117,8 @@ namespace Microsoft.Data.Sqlite
         ///     Releases any resources used by the transaction and rolls it back.
         /// </summary>
         /// <param name="disposing">
-        ///     true to release managed and unmanaged resources; false to release only unmanaged resources.
+        ///     <see langword="true"/> to release managed and unmanaged resources;
+        ///     <see langword="false"/> to release only unmanaged resources.
         /// </param>
         protected override void Dispose(bool disposing)
         {

@@ -16,7 +16,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
     ///     A base type for conventions that configure model aspects based on whether the member type
     ///     is a non-nullable reference type.
     /// </summary>
-    public abstract class NonNullableConventionBase : IModelFinalizedConvention
+    public abstract class NonNullableConventionBase : IModelFinalizingConvention
     {
         // For the interpretation of nullability metadata, see
         // https://github.com/dotnet/roslyn/blob/master/docs/features/nullable-metadata.md
@@ -44,7 +44,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// </summary>
         /// <param name="modelBuilder"> The model builder used to build the model. </param>
         /// <param name="memberInfo"> The member info. </param>
-        /// <returns> <c>true</c> if the member type is a non-nullable reference type. </returns>
+        /// <returns> <see langword="true" /> if the member type is a non-nullable reference type. </returns>
         protected virtual bool IsNonNullableReferenceType(
             [JetbrainsNotNull] IConventionModelBuilder modelBuilder,
             [JetbrainsNotNull] MemberInfo memberInfo)
@@ -126,19 +126,15 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
 
         private NonNullabilityConventionState GetOrInitializeState(IConventionModelBuilder modelBuilder)
             => (NonNullabilityConventionState)(
-                modelBuilder.Metadata.FindAnnotation(StateAnnotationName) ??
-                modelBuilder.Metadata.AddAnnotation(StateAnnotationName, new NonNullabilityConventionState())
+                modelBuilder.Metadata.FindAnnotation(StateAnnotationName)
+                ?? modelBuilder.Metadata.AddAnnotation(StateAnnotationName, new NonNullabilityConventionState())
             ).Value;
 
-        /// <summary>
-        ///     Called after a model is finalized. Removes the cached state annotation used by this convention.
-        /// </summary>
-        /// <param name="modelBuilder"> The builder for the model. </param>
-        /// <param name="context"> Additional information associated with convention execution. </param>
-        public virtual void ProcessModelFinalized(IConventionModelBuilder modelBuilder, IConventionContext<IConventionModelBuilder> context)
+        /// <inheritdoc />
+        public virtual void ProcessModelFinalizing(IConventionModelBuilder modelBuilder, IConventionContext<IConventionModelBuilder> context)
             => modelBuilder.Metadata.RemoveAnnotation(StateAnnotationName);
 
-        private class NonNullabilityConventionState
+        private sealed class NonNullabilityConventionState
         {
             public Type NullableAttrType;
             public Type NullableContextAttrType;

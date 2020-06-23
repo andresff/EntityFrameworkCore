@@ -147,7 +147,7 @@ namespace Microsoft.EntityFrameworkCore.Storage
 
             public static bool operator ==(JustAStructWithEqualityOperators left, JustAStructWithEqualityOperators right)
                 => left.A == right.A
-                   && left.B == right.B;
+                    && left.B == right.B;
 
             public static bool operator !=(JustAStructWithEqualityOperators left, JustAStructWithEqualityOperators right)
                 => !(left == right);
@@ -189,9 +189,9 @@ namespace Microsoft.EntityFrameworkCore.Storage
 
             public override bool Equals(object obj)
                 => !(obj is null)
-                   && (ReferenceEquals(this, obj)
-                       || obj is JustAClassWithEquality o
-                       && Equals(o));
+                    && (ReferenceEquals(this, obj)
+                        || obj is JustAClassWithEquality o
+                        && Equals(o));
 
             public override int GetHashCode() => A;
         }
@@ -218,9 +218,9 @@ namespace Microsoft.EntityFrameworkCore.Storage
 
             private static bool InternalEquals(JustAClassWithEqualityOperators left, JustAClassWithEqualityOperators right)
                 => left is null
-                   || right is null
-                    ? left is null && right is null
-                    : left.A == right.A;
+                    || right is null
+                        ? left is null && right is null
+                        : left.A == right.A;
 
             public static bool operator ==(JustAClassWithEqualityOperators left, JustAClassWithEqualityOperators right)
                 => InternalEquals(left, right);
@@ -401,6 +401,8 @@ namespace Microsoft.EntityFrameworkCore.Storage
             var keyEquals = keyComparer.EqualsExpression.Compile();
             var getHashCode = comparer.HashCodeExpression.Compile();
             var getKeyHashCode = keyComparer.HashCodeExpression.Compile();
+            var snapshot = comparer.SnapshotExpression.Compile();
+            var keySnapshot = keyComparer.SnapshotExpression.Compile();
 
             var value1a = new byte[] { 1, 2 };
             var value1b = new byte[] { 1, 2 };
@@ -416,6 +418,14 @@ namespace Microsoft.EntityFrameworkCore.Storage
 
             Assert.Equal(value1a.GetHashCode(), getHashCode(value1a));
             Assert.NotEqual(value1a.GetHashCode(), getKeyHashCode(value1a));
+
+            var copy = snapshot(value1a);
+            var keyCopy = keySnapshot(value2);
+
+            Assert.Same(value1a, copy);
+            Assert.NotSame(value2, keyCopy);
+            Assert.Equal(value1a, copy);
+            Assert.Equal(value2, keyCopy);
         }
 
         private class Binary

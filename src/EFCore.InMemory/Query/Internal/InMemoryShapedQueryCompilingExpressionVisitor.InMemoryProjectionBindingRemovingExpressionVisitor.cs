@@ -8,19 +8,23 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.Utilities;
+using ExpressionExtensions = Microsoft.EntityFrameworkCore.Infrastructure.ExpressionExtensions;
 
 namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
 {
     public partial class InMemoryShapedQueryCompilingExpressionVisitor
     {
-        private class InMemoryProjectionBindingRemovingExpressionVisitor : ExpressionVisitor
+        private sealed class InMemoryProjectionBindingRemovingExpressionVisitor : ExpressionVisitor
         {
             private readonly IDictionary<ParameterExpression, (IDictionary<IProperty, int> IndexMap, ParameterExpression valueBuffer)>
                 _materializationContextBindings
-                = new Dictionary<ParameterExpression, (IDictionary<IProperty, int> IndexMap, ParameterExpression valueBuffer)>();
+                    = new Dictionary<ParameterExpression, (IDictionary<IProperty, int> IndexMap, ParameterExpression valueBuffer)>();
 
             protected override Expression VisitBinary(BinaryExpression binaryExpression)
             {
+                Check.NotNull(binaryExpression, nameof(binaryExpression));
+
                 if (binaryExpression.NodeType == ExpressionType.Assign
                     && binaryExpression.Left is ParameterExpression parameterExpression
                     && parameterExpression.Type == typeof(MaterializationContext))
@@ -55,8 +59,10 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
 
             protected override Expression VisitMethodCall(MethodCallExpression methodCallExpression)
             {
+                Check.NotNull(methodCallExpression, nameof(methodCallExpression));
+
                 if (methodCallExpression.Method.IsGenericMethod
-                    && methodCallExpression.Method.GetGenericMethodDefinition() == EntityMaterializerSource.TryReadValueMethod)
+                    && methodCallExpression.Method.GetGenericMethodDefinition() == ExpressionExtensions.ValueBufferTryReadValueMethod)
                 {
                     var property = (IProperty)((ConstantExpression)methodCallExpression.Arguments[2]).Value;
                     var (indexMap, valueBuffer) =
@@ -75,17 +81,18 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
 
             protected override Expression VisitExtension(Expression extensionExpression)
             {
+                Check.NotNull(extensionExpression, nameof(extensionExpression));
+
                 if (extensionExpression is ProjectionBindingExpression projectionBindingExpression)
                 {
                     var queryExpression = (InMemoryQueryExpression)projectionBindingExpression.QueryExpression;
                     var projectionIndex = (int)GetProjectionIndex(queryExpression, projectionBindingExpression);
                     var valueBuffer = queryExpression.CurrentParameter;
 
-                    return Expression.Call(
-                        EntityMaterializerSource.TryReadValueMethod.MakeGenericMethod(projectionBindingExpression.Type),
-                        valueBuffer,
-                        Expression.Constant(projectionIndex),
-                        Expression.Constant(InferPropertyFromInner(queryExpression.Projection[projectionIndex]), typeof(IPropertyBase)));
+                    return valueBuffer.CreateValueBufferReadValueExpression(
+                        projectionBindingExpression.Type,
+                        projectionIndex,
+                        InferPropertyFromInner(queryExpression.Projection[projectionIndex]));
                 }
 
                 return base.VisitExtension(extensionExpression);
@@ -95,7 +102,7 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
             {
                 if (expression is MethodCallExpression methodCallExpression
                     && methodCallExpression.Method.IsGenericMethod
-                    && methodCallExpression.Method.GetGenericMethodDefinition() == EntityMaterializerSource.TryReadValueMethod)
+                    && methodCallExpression.Method.GetGenericMethodDefinition() == ExpressionExtensions.ValueBufferTryReadValueMethod)
                 {
                     return (IPropertyBase)((ConstantExpression)methodCallExpression.Arguments[2]).Value;
                 }
@@ -103,7 +110,8 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                 return null;
             }
 
-            private object GetProjectionIndex(InMemoryQueryExpression queryExpression, ProjectionBindingExpression projectionBindingExpression)
+            private object GetProjectionIndex(
+                InMemoryQueryExpression queryExpression, ProjectionBindingExpression projectionBindingExpression)
             {
                 return projectionBindingExpression.ProjectionMember != null
                     ? ((ConstantExpression)queryExpression.GetMappedProjection(projectionBindingExpression.ProjectionMember)).Value

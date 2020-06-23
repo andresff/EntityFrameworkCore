@@ -3,13 +3,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -45,16 +44,16 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
         public ParameterExtractingExpressionVisitor(
-            IEvaluatableExpressionFilter evaluatableExpressionFilter,
-            IParameterValues parameterValues,
-            Type contextType,
-            IModel model,
-            IDiagnosticsLogger<DbLoggerCategory.Query> logger,
+            [NotNull] IEvaluatableExpressionFilter evaluatableExpressionFilter,
+            [NotNull] IParameterValues parameterValues,
+            [NotNull] Type contextType,
+            [NotNull] IModel model,
+            [NotNull] IDiagnosticsLogger<DbLoggerCategory.Query> logger,
             bool parameterize,
             bool generateContextAccessors)
         {
             _evaluatableExpressionFindingExpressionVisitor
-                = new EvaluatableExpressionFindingExpressionVisitor(evaluatableExpressionFilter, model);
+                = new EvaluatableExpressionFindingExpressionVisitor(evaluatableExpressionFilter, model, parameterize);
             _parameterValues = parameterValues;
             _logger = logger;
             _parameterize = parameterize;
@@ -71,7 +70,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        public virtual Expression ExtractParameters(Expression expression)
+        public virtual Expression ExtractParameters([NotNull] Expression expression)
         {
             var oldEvaluatableExpressions = _evaluatableExpressions;
             _evaluatableExpressions = _evaluatableExpressionFindingExpressionVisitor.Find(expression);
@@ -149,26 +148,71 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
+        protected override Expression VisitConditional(ConditionalExpression conditionalExpression)
+        {
+            var newTestExpression = TryGetConstantValue(conditionalExpression.Test) ?? Visit(conditionalExpression.Test);
+
+            if (newTestExpression is ConstantExpression constantTestExpression
+                && constantTestExpression.Value is bool constantTestValue)
+            {
+                return constantTestValue
+                    ? Visit(conditionalExpression.IfTrue)
+                    : Visit(conditionalExpression.IfFalse);
+            }
+
+            return conditionalExpression.Update(
+                newTestExpression,
+                Visit(conditionalExpression.IfTrue),
+                Visit(conditionalExpression.IfFalse));
+        }
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
         protected override Expression VisitBinary(BinaryExpression binaryExpression)
         {
-            if (!binaryExpression.IsLogicalOperation())
+            switch (binaryExpression.NodeType)
             {
-                return base.VisitBinary(binaryExpression);
-            }
+                case ExpressionType.Coalesce:
+                {
+                    var newLeftExpression = TryGetConstantValue(binaryExpression.Left) ?? Visit(binaryExpression.Left);
+                    if (newLeftExpression is ConstantExpression constantLeftExpression)
+                    {
+                        return constantLeftExpression.Value == null
+                            ? Visit(binaryExpression.Right)
+                            : newLeftExpression;
+                    }
 
-            var newLeftExpression = TryGetConstantValue(binaryExpression.Left) ?? Visit(binaryExpression.Left);
-            if (ShortCircuitBinaryExpression(newLeftExpression, binaryExpression.NodeType))
-            {
-                return newLeftExpression;
-            }
+                    return binaryExpression.Update(
+                        newLeftExpression,
+                        binaryExpression.Conversion,
+                        Visit(binaryExpression.Right));
+                }
 
-            var newRightExpression = TryGetConstantValue(binaryExpression.Right) ?? Visit(binaryExpression.Right);
-            if (ShortCircuitBinaryExpression(newRightExpression, binaryExpression.NodeType))
-            {
-                return newRightExpression;
-            }
+                case ExpressionType.AndAlso:
+                case ExpressionType.OrElse:
+                {
+                    var newLeftExpression = TryGetConstantValue(binaryExpression.Left) ?? Visit(binaryExpression.Left);
+                    if (ShortCircuitLogicalExpression(newLeftExpression, binaryExpression.NodeType))
+                    {
+                        return newLeftExpression;
+                    }
 
-            return binaryExpression.Update(newLeftExpression, binaryExpression.Conversion, newRightExpression);
+                    var newRightExpression = TryGetConstantValue(binaryExpression.Right) ?? Visit(binaryExpression.Right);
+                    if (ShortCircuitLogicalExpression(newRightExpression, binaryExpression.NodeType))
+                    {
+                        return newRightExpression;
+                    }
+
+                    return binaryExpression.Update(newLeftExpression, binaryExpression.Conversion, newRightExpression);
+                }
+
+                default:
+                    return base.VisitBinary(binaryExpression);
+            }
         }
 
         private Expression TryGetConstantValue(Expression expression)
@@ -186,11 +230,11 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
             return null;
         }
 
-        private static bool ShortCircuitBinaryExpression(Expression expression, ExpressionType nodeType)
+        private static bool ShortCircuitLogicalExpression(Expression expression, ExpressionType nodeType)
             => expression is ConstantExpression constantExpression
-               && constantExpression.Value is bool constantValue
-               && ((constantValue && nodeType == ExpressionType.OrElse)
-                   || (!constantValue && nodeType == ExpressionType.AndAlso));
+                && constantExpression.Value is bool constantValue
+                && ((constantValue && nodeType == ExpressionType.OrElse)
+                    || (!constantValue && nodeType == ExpressionType.AndAlso));
 
         /// <summary>
         ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
@@ -198,25 +242,25 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
         ///     any release. You should only use it directly in your code with extreme caution and knowing that
         ///     doing so can result in application failures when updating to a new Entity Framework Core release.
         /// </summary>
-        protected override Expression VisitConstant(ConstantExpression constantExpression)
+        protected override Expression VisitExtension(Expression extensionExpression)
         {
-            if (constantExpression.Value is IDetachableContext detachableContext)
+            if (extensionExpression is QueryRootExpression queryRootExpression)
             {
-                var queryProvider = ((IQueryable)constantExpression.Value).Provider;
+                var queryProvider = queryRootExpression.QueryProvider;
                 if (_currentQueryProvider == null)
                 {
                     _currentQueryProvider = queryProvider;
                 }
-                else if (!ReferenceEquals(queryProvider, _currentQueryProvider)
-                         && queryProvider.GetType() == _currentQueryProvider.GetType())
+                else if (!ReferenceEquals(queryProvider, _currentQueryProvider))
                 {
                     throw new InvalidOperationException(CoreStrings.ErrorInvalidQueryable);
                 }
 
-                return Expression.Constant(detachableContext.DetachContext());
+                // Visit after detaching query provider since custom query roots can have additional components
+                extensionExpression = queryRootExpression.DetachQueryProvider();
             }
 
-            return base.VisitConstant(constantExpression);
+            return base.VisitExtension(extensionExpression);
         }
 
         private static Expression GenerateConstantExpression(object value, Type returnType)
@@ -278,10 +322,10 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
             }
 
             parameterName
-                = CompiledQueryCache.CompiledQueryParameterPrefix
-                  + parameterName
-                  + "_"
-                  + _parameterValues.ParameterValues.Count;
+                = QueryCompilationContext.QueryParameterPrefix
+                + parameterName
+                + "_"
+                + _parameterValues.ParameterValues.Count;
 
             _parameterValues.AddParameter(parameterName, parameterValue);
 
@@ -292,7 +336,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
             return parameter;
         }
 
-        private class ContextParameterReplacingExpressionVisitor : ExpressionVisitor
+        private sealed class ContextParameterReplacingExpressionVisitor : ExpressionVisitor
         {
             private readonly Type _contextType;
 
@@ -305,11 +349,10 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
             public ParameterExpression ContextParameterExpression { get; }
 
             public override Expression Visit(Expression expression)
-            {
-                return expression?.Type.GetTypeInfo().IsAssignableFrom(_contextType) == true
+                => expression?.Type != typeof(object)
+                    && expression?.Type.IsAssignableFrom(_contextType) == true
                     ? ContextParameterExpression
                     : base.Visit(expression);
-            }
         }
 
         private static Expression RemoveConvert(Expression expression)
@@ -345,9 +388,9 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                     }
 
                     parameterName = QueryFilterPrefix
-                                    + (RemoveConvert(expression) is MemberExpression memberExpression
-                                        ? ("__" + memberExpression.Member.Name)
-                                        : "");
+                        + (RemoveConvert(expression) is MemberExpression memberExpression
+                            ? ("__" + memberExpression.Member.Name)
+                            : "");
 
                     return Expression.Lambda(
                         newExpression,
@@ -388,8 +431,8 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
                 case UnaryExpression unaryExpression
                     when (unaryExpression.NodeType == ExpressionType.Convert
-                          || unaryExpression.NodeType == ExpressionType.ConvertChecked)
-                         && (unaryExpression.Type.UnwrapNullableType() == unaryExpression.Operand.Type):
+                        || unaryExpression.NodeType == ExpressionType.ConvertChecked)
+                    && (unaryExpression.Type.UnwrapNullableType() == unaryExpression.Operand.Type):
                     return GetValue(unaryExpression.Operand, out parameterName);
             }
 
@@ -410,21 +453,24 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
             }
         }
 
-        private class EvaluatableExpressionFindingExpressionVisitor : ExpressionVisitor
+        private sealed class EvaluatableExpressionFindingExpressionVisitor : ExpressionVisitor
         {
             private readonly IEvaluatableExpressionFilter _evaluatableExpressionFilter;
             private readonly ISet<ParameterExpression> _allowedParameters = new HashSet<ParameterExpression>();
             private readonly IModel _model;
+            private readonly bool _parameterize;
 
             private bool _evaluatable;
             private bool _containsClosure;
             private bool _inLambda;
             private IDictionary<Expression, bool> _evaluatableExpressions;
 
-            public EvaluatableExpressionFindingExpressionVisitor(IEvaluatableExpressionFilter evaluatableExpressionFilter, IModel model)
+            public EvaluatableExpressionFindingExpressionVisitor(
+                IEvaluatableExpressionFilter evaluatableExpressionFilter, IModel model, bool parameterize)
             {
                 _evaluatableExpressionFilter = evaluatableExpressionFilter;
                 _model = model;
+                _parameterize = parameterize;
             }
 
             public IDictionary<Expression, bool> Find(Expression expression)
@@ -451,15 +497,18 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                 var parentContainsClosure = _containsClosure;
 
                 _evaluatable = IsEvaluatableNodeType(expression)
-                               // Extension point to disable funcletization
-                               && _evaluatableExpressionFilter.IsEvaluatableExpression(expression, _model);
+                    // Extension point to disable funcletization
+                    && _evaluatableExpressionFilter.IsEvaluatableExpression(expression, _model)
+                    // Don't evaluate QueryableMethods if in compiled query
+                    && (_parameterize || !IsQueryableMethod(expression));
                 _containsClosure = false;
 
                 base.Visit(expression);
 
                 if (_evaluatable)
                 {
-                    _evaluatableExpressions[expression] = _containsClosure;
+                    // Force parameterization when not in lambda
+                    _evaluatableExpressions[expression] = _containsClosure || !_inLambda;
                 }
 
                 _evaluatable = parentEvaluatable && _evaluatable;
@@ -486,9 +535,13 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                 Visit(memberInitExpression.Bindings, VisitMemberBinding);
 
                 // Cannot make parameter for NewExpression if Bindings cannot be evaluated
-                if (_evaluatable)
+                // but we still need to visit inside of it.
+                var bindingsEvaluatable = _evaluatable;
+                Visit(memberInitExpression.NewExpression);
+
+                if (!bindingsEvaluatable)
                 {
-                    Visit(memberInitExpression.NewExpression);
+                    _evaluatableExpressions.Remove(memberInitExpression.NewExpression);
                 }
 
                 return memberInitExpression;
@@ -499,9 +552,13 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
                 Visit(listInitExpression.Initializers, VisitElementInit);
 
                 // Cannot make parameter for NewExpression if Initializers cannot be evaluated
-                if (_evaluatable)
+                // but we still need to visit inside of it.
+                var initializersEvaluatable = _evaluatable;
+                Visit(listInitExpression.NewExpression);
+
+                if (!initializersEvaluatable)
                 {
-                    Visit(listInitExpression.NewExpression);
+                    _evaluatableExpressions.Remove(listInitExpression.NewExpression);
                 }
 
                 return listInitExpression;
@@ -528,18 +585,11 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
                     Visit(methodCallExpression.Arguments[i]);
 
-                    if (_evaluatableExpressions.ContainsKey(methodCallExpression.Arguments[i]))
+                    if (_evaluatableExpressions.ContainsKey(methodCallExpression.Arguments[i])
+                        && (parameterInfos[i].GetCustomAttribute<NotParameterizedAttribute>() != null
+                            || _model.IsIndexerMethod(methodCallExpression.Method)))
                     {
-                        if (parameterInfos[i].GetCustomAttribute<NotParameterizedAttribute>() != null
-                            || methodCallExpression.Method.IsEFIndexer())
-                        {
-                            _evaluatableExpressions[methodCallExpression.Arguments[i]] = false;
-                        }
-                        else if (!_inLambda)
-                        {
-                            // Force parameterization when not in lambada
-                            _evaluatableExpressions[methodCallExpression.Arguments[i]] = true;
-                        }
+                        _evaluatableExpressions[methodCallExpression.Arguments[i]] = false;
                     }
                 }
 
@@ -549,7 +599,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
             protected override Expression VisitMember(MemberExpression memberExpression)
             {
                 _containsClosure = memberExpression.Expression != null
-                                   || !(memberExpression.Member is FieldInfo fieldInfo && fieldInfo.IsInitOnly);
+                    || !(memberExpression.Member is FieldInfo fieldInfo && fieldInfo.IsInitOnly);
                 return base.VisitMember(memberExpression);
             }
 
@@ -562,8 +612,7 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
 
             protected override Expression VisitConstant(ConstantExpression constantExpression)
             {
-                _evaluatable = !(constantExpression.Value is IDetachableContext)
-                               && !(constantExpression.Value is IQueryable);
+                _evaluatable = !(constantExpression.Value is IQueryable);
 
 #pragma warning disable RCS1096 // Use bitwise operation instead of calling 'HasFlag'.
                 _containsClosure
@@ -576,19 +625,13 @@ namespace Microsoft.EntityFrameworkCore.Query.Internal
             }
 
             private static bool IsEvaluatableNodeType(Expression expression)
-            {
-                if (expression.NodeType == ExpressionType.Extension)
-                {
-                    if (!expression.CanReduce)
-                    {
-                        return false;
-                    }
+                => expression.NodeType != ExpressionType.Extension
+                    || expression.CanReduce
+                        && IsEvaluatableNodeType(expression.ReduceAndCheck());
 
-                    return IsEvaluatableNodeType(expression.ReduceAndCheck());
-                }
-
-                return true;
-            }
+            private static bool IsQueryableMethod(Expression expression)
+                => expression is MethodCallExpression methodCallExpression
+                    && methodCallExpression.Method.DeclaringType == typeof(Queryable);
         }
     }
 }

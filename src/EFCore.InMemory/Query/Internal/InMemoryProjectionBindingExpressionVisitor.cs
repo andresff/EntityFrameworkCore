@@ -5,14 +5,22 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.Utilities;
 
 namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
 {
+    /// <summary>
+    ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+    ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+    ///     any release. You should only use it directly in your code with extreme caution and knowing that
+    ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+    /// </summary>
     public class InMemoryProjectionBindingExpressionVisitor : ExpressionVisitor
     {
         private readonly InMemoryQueryableMethodTranslatingExpressionVisitor _queryableMethodTranslatingExpressionVisitor;
@@ -26,15 +34,27 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
 
         private readonly Stack<ProjectionMember> _projectionMembers = new Stack<ProjectionMember>();
 
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
         public InMemoryProjectionBindingExpressionVisitor(
-            InMemoryQueryableMethodTranslatingExpressionVisitor queryableMethodTranslatingExpressionVisitor,
-            InMemoryExpressionTranslatingExpressionVisitor expressionTranslatingExpressionVisitor)
+            [NotNull] InMemoryQueryableMethodTranslatingExpressionVisitor queryableMethodTranslatingExpressionVisitor,
+            [NotNull] InMemoryExpressionTranslatingExpressionVisitor expressionTranslatingExpressionVisitor)
         {
             _queryableMethodTranslatingExpressionVisitor = queryableMethodTranslatingExpressionVisitor;
             _expressionTranslatingExpressionVisitor = expressionTranslatingExpressionVisitor;
         }
 
-        public virtual Expression Translate(InMemoryQueryExpression queryExpression, Expression expression)
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        public virtual Expression Translate([NotNull] InMemoryQueryExpression queryExpression, [NotNull] Expression expression)
         {
             _queryExpression = queryExpression;
             _clientEval = false;
@@ -62,6 +82,12 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
             return result;
         }
 
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
         public override Expression Visit(Expression expression)
         {
             if (expression == null)
@@ -70,9 +96,9 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
             }
 
             if (!(expression is NewExpression
-                  || expression is MemberInitExpression
-                  || expression is EntityShaperExpression
-                  || expression is IncludeExpression))
+                || expression is MemberInitExpression
+                || expression is EntityShaperExpression
+                || expression is IncludeExpression))
             {
                 // This skips the group parameter from GroupJoin
                 if (expression is ParameterExpression parameter
@@ -141,7 +167,8 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                         translation = NullSafeConvert(translation, expression.Type);
                     }
 
-                    return new ProjectionBindingExpression(_queryExpression, _queryExpression.AddToProjection(translation), expression.Type);
+                    return new ProjectionBindingExpression(
+                        _queryExpression, _queryExpression.AddToProjection(translation), expression.Type);
                 }
                 else
                 {
@@ -171,7 +198,7 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                 : Expression.Convert(expression, convertTo);
 
         private CollectionShaperExpression AddCollectionProjection(
-            ShapedQueryExpression subquery, INavigation navigation, Type elementType)
+            ShapedQueryExpression subquery, INavigationBase navigation, Type elementType)
             => new CollectionShaperExpression(
                 new ProjectionBindingExpression(
                     _queryExpression,
@@ -183,8 +210,16 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                 navigation,
                 elementType);
 
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
         protected override Expression VisitExtension(Expression extensionExpression)
         {
+            Check.NotNull(extensionExpression, nameof(extensionExpression));
+
             if (extensionExpression is EntityShaperExpression entityShaperExpression)
             {
                 EntityProjectionExpression entityProjectionExpression;
@@ -204,13 +239,11 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                     return entityShaperExpression.Update(
                         new ProjectionBindingExpression(_queryExpression, _queryExpression.AddToProjection(entityProjectionExpression)));
                 }
-                else
-                {
-                    _projectionMapping[_projectionMembers.Peek()] = entityProjectionExpression;
 
-                    return entityShaperExpression.Update(
-                        new ProjectionBindingExpression(_queryExpression, _projectionMembers.Peek(), typeof(ValueBuffer)));
-                }
+                _projectionMapping[_projectionMembers.Peek()] = entityProjectionExpression;
+
+                return entityShaperExpression.Update(
+                    new ProjectionBindingExpression(_queryExpression, _projectionMembers.Peek(), typeof(ValueBuffer)));
             }
 
             if (extensionExpression is IncludeExpression includeExpression)
@@ -223,8 +256,16 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
             throw new InvalidOperationException(CoreStrings.QueryFailed(extensionExpression.Print(), GetType().Name));
         }
 
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
         protected override Expression VisitNew(NewExpression newExpression)
         {
+            Check.NotNull(newExpression, nameof(newExpression));
+
             if (newExpression.Arguments.Count == 0)
             {
                 return newExpression;
@@ -260,9 +301,17 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
             return newExpression.Update(newArguments);
         }
 
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
         protected override Expression VisitMemberInit(MemberInitExpression memberInitExpression)
         {
-            var newExpression = VisitAndConvert(memberInitExpression.NewExpression, nameof(VisitMemberInit));
+            Check.NotNull(memberInitExpression, nameof(memberInitExpression));
+
+            var newExpression = Visit(memberInitExpression.NewExpression);
             if (newExpression == null)
             {
                 return null;
@@ -283,9 +332,15 @@ namespace Microsoft.EntityFrameworkCore.InMemory.Query.Internal
                 }
             }
 
-            return memberInitExpression.Update(newExpression, newBindings);
+            return memberInitExpression.Update((NewExpression)newExpression, newBindings);
         }
 
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
         protected override MemberAssignment VisitMemberAssignment(MemberAssignment memberAssignment)
         {
             if (_clientEval)

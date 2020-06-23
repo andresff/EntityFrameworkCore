@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.TestUtilities;
-using Microsoft.EntityFrameworkCore.ValueGeneration.Internal;
+using Microsoft.EntityFrameworkCore.ValueGeneration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -227,7 +227,12 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking.Internal
             var manager = contextServices.GetRequiredService<IStateManager>();
 
             var dependent = new OrderLineDetail();
-            var principal = new OrderLine { OrderId = 11, ProductId = 21, Detail = dependent };
+            var principal = new OrderLine
+            {
+                OrderId = 11,
+                ProductId = 21,
+                Detail = dependent
+            };
 
             manager.GetOrCreateEntry(principal).SetEntityState(EntityState.Unchanged);
             var dependentEntry = manager.GetOrCreateEntry(dependent);

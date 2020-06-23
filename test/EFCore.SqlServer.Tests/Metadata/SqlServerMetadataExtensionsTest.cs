@@ -2,7 +2,6 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Linq;
 using Microsoft.EntityFrameworkCore.SqlServer.Internal;
 using Microsoft.EntityFrameworkCore.TestUtilities;
 using Xunit;
@@ -21,22 +20,22 @@ namespace Microsoft.EntityFrameworkCore.Metadata
                 .Model;
 
             Assert.Null(model.GetDatabaseMaxSize());
-            Assert.Null(((IConventionModel)model).GetMaxSizeConfigurationSource());
+            Assert.Null(((IConventionModel)model).GetDatabaseMaxSizeConfigurationSource());
 
             ((IConventionModel)model).SetDatabaseMaxSize("1 GB", fromDataAnnotation: true);
 
             Assert.Equal("1 GB", model.GetDatabaseMaxSize());
-            Assert.Equal(ConfigurationSource.DataAnnotation, ((IConventionModel)model).GetMaxSizeConfigurationSource());
+            Assert.Equal(ConfigurationSource.DataAnnotation, ((IConventionModel)model).GetDatabaseMaxSizeConfigurationSource());
 
             model.SetDatabaseMaxSize("10 GB");
 
             Assert.Equal("10 GB", model.GetDatabaseMaxSize());
-            Assert.Equal(ConfigurationSource.Explicit, ((IConventionModel)model).GetMaxSizeConfigurationSource());
+            Assert.Equal(ConfigurationSource.Explicit, ((IConventionModel)model).GetDatabaseMaxSizeConfigurationSource());
 
             model.SetDatabaseMaxSize(null);
 
             Assert.Null(model.GetDatabaseMaxSize());
-            Assert.Null(((IConventionModel)model).GetMaxSizeConfigurationSource());
+            Assert.Null(((IConventionModel)model).GetDatabaseMaxSizeConfigurationSource());
         }
 
         [ConditionalFact]
@@ -47,23 +46,23 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             var model = modelBuilder
                 .Model;
 
-            Assert.Null(model.GetServiceTier());
-            Assert.Null(((IConventionModel)model).GetMaxSizeConfigurationSource());
+            Assert.Null(model.GetServiceTierSql());
+            Assert.Null(((IConventionModel)model).GetDatabaseMaxSizeConfigurationSource());
 
-            ((IConventionModel)model).SetServiceTier("basic", fromDataAnnotation: true);
+            ((IConventionModel)model).SetServiceTierSql("basic", fromDataAnnotation: true);
 
-            Assert.Equal("basic", model.GetServiceTier());
-            Assert.Equal(ConfigurationSource.DataAnnotation, ((IConventionModel)model).GetServiceTierConfigurationSource());
+            Assert.Equal("basic", model.GetServiceTierSql());
+            Assert.Equal(ConfigurationSource.DataAnnotation, ((IConventionModel)model).GetServiceTierSqlConfigurationSource());
 
-            model.SetServiceTier("standard");
+            model.SetServiceTierSql("standard");
 
-            Assert.Equal("standard", model.GetServiceTier());
-            Assert.Equal(ConfigurationSource.Explicit, ((IConventionModel)model).GetServiceTierConfigurationSource());
+            Assert.Equal("standard", model.GetServiceTierSql());
+            Assert.Equal(ConfigurationSource.Explicit, ((IConventionModel)model).GetServiceTierSqlConfigurationSource());
 
-            model.SetServiceTier(null);
+            model.SetServiceTierSql(null);
 
-            Assert.Null(model.GetServiceTier());
-            Assert.Null(((IConventionModel)model).GetServiceTierConfigurationSource());
+            Assert.Null(model.GetServiceTierSql());
+            Assert.Null(((IConventionModel)model).GetServiceTierSqlConfigurationSource());
         }
 
         [ConditionalFact]
@@ -74,23 +73,23 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             var model = modelBuilder
                 .Model;
 
-            Assert.Null(model.GetPerformanceLevel());
-            Assert.Null(((IConventionModel)model).GetPerformanceLevelConfigurationSource());
+            Assert.Null(model.GetPerformanceLevelSql());
+            Assert.Null(((IConventionModel)model).GetPerformanceLevelSqlConfigurationSource());
 
-            ((IConventionModel)model).SetPerformanceLevel("S0", fromDataAnnotation: true);
+            ((IConventionModel)model).SetPerformanceLevelSql("S0", fromDataAnnotation: true);
 
-            Assert.Equal("S0", model.GetPerformanceLevel());
-            Assert.Equal(ConfigurationSource.DataAnnotation, ((IConventionModel)model).GetPerformanceLevelConfigurationSource());
+            Assert.Equal("S0", model.GetPerformanceLevelSql());
+            Assert.Equal(ConfigurationSource.DataAnnotation, ((IConventionModel)model).GetPerformanceLevelSqlConfigurationSource());
 
-            model.SetPerformanceLevel("ELASTIC_POOL (name = elastic_pool)");
+            model.SetPerformanceLevelSql("ELASTIC_POOL (name = elastic_pool)");
 
-            Assert.Equal("ELASTIC_POOL (name = elastic_pool)", model.GetPerformanceLevel());
-            Assert.Equal(ConfigurationSource.Explicit, ((IConventionModel)model).GetPerformanceLevelConfigurationSource());
+            Assert.Equal("ELASTIC_POOL (name = elastic_pool)", model.GetPerformanceLevelSql());
+            Assert.Equal(ConfigurationSource.Explicit, ((IConventionModel)model).GetPerformanceLevelSqlConfigurationSource());
 
-            model.SetPerformanceLevel(null);
+            model.SetPerformanceLevelSql(null);
 
-            Assert.Null(model.GetPerformanceLevel());
-            Assert.Null(((IConventionModel)model).GetPerformanceLevelConfigurationSource());
+            Assert.Null(model.GetPerformanceLevelSql());
+            Assert.Null(((IConventionModel)model).GetPerformanceLevelSqlConfigurationSource());
         }
 
         [ConditionalFact]
@@ -188,146 +187,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             key.SetIsClustered(null);
 
             Assert.Null(key.IsClustered());
-        }
-
-        [ConditionalFact]
-        public void Can_get_and_set_sequence()
-        {
-            var modelBuilder = GetModelBuilder();
-            var model = modelBuilder.Model;
-
-            Assert.Null(model.FindSequence("Foo"));
-            Assert.Null(model.FindSequence("Foo"));
-            Assert.Null(((IModel)model).FindSequence("Foo"));
-
-            var sequence = model.AddSequence("Foo");
-
-            Assert.Equal("Foo", model.FindSequence("Foo").Name);
-            Assert.Equal("Foo", ((IModel)model).FindSequence("Foo").Name);
-            Assert.Equal("Foo", model.FindSequence("Foo").Name);
-            Assert.Equal("Foo", ((IModel)model).FindSequence("Foo").Name);
-
-            Assert.Equal("Foo", sequence.Name);
-            Assert.Null(sequence.Schema);
-            Assert.Equal(1, sequence.IncrementBy);
-            Assert.Equal(1, sequence.StartValue);
-            Assert.Null(sequence.MinValue);
-            Assert.Null(sequence.MaxValue);
-            Assert.Same(typeof(long), sequence.ClrType);
-
-            Assert.NotNull(model.FindSequence("Foo"));
-
-            var sequence2 = model.FindSequence("Foo");
-
-            sequence.StartValue = 1729;
-            sequence.IncrementBy = 11;
-            sequence.MinValue = 2001;
-            sequence.MaxValue = 2010;
-            sequence.ClrType = typeof(int);
-
-            Assert.Equal("Foo", sequence.Name);
-            Assert.Null(sequence.Schema);
-            Assert.Equal(11, sequence.IncrementBy);
-            Assert.Equal(1729, sequence.StartValue);
-            Assert.Equal(2001, sequence.MinValue);
-            Assert.Equal(2010, sequence.MaxValue);
-            Assert.Same(typeof(int), sequence.ClrType);
-
-            Assert.Equal(sequence2.Name, sequence.Name);
-            Assert.Equal(sequence2.Schema, sequence.Schema);
-            Assert.Equal(sequence2.IncrementBy, sequence.IncrementBy);
-            Assert.Equal(sequence2.StartValue, sequence.StartValue);
-            Assert.Equal(sequence2.MinValue, sequence.MinValue);
-            Assert.Equal(sequence2.MaxValue, sequence.MaxValue);
-            Assert.Same(sequence2.ClrType, sequence.ClrType);
-        }
-
-        [ConditionalFact]
-        public void Can_get_and_set_sequence_with_schema_name()
-        {
-            var modelBuilder = GetModelBuilder();
-            var model = modelBuilder.Model;
-
-            Assert.Null(model.FindSequence("Foo", "Smoo"));
-            Assert.Null(model.FindSequence("Foo", "Smoo"));
-            Assert.Null(((IModel)model).FindSequence("Foo", "Smoo"));
-
-            var sequence = model.AddSequence("Foo", "Smoo");
-
-            Assert.Equal("Foo", model.FindSequence("Foo", "Smoo").Name);
-            Assert.Equal("Foo", ((IModel)model).FindSequence("Foo", "Smoo").Name);
-            Assert.Equal("Foo", model.FindSequence("Foo", "Smoo").Name);
-            Assert.Equal("Foo", ((IModel)model).FindSequence("Foo", "Smoo").Name);
-
-            Assert.Equal("Foo", sequence.Name);
-            Assert.Equal("Smoo", sequence.Schema);
-            Assert.Equal(1, sequence.IncrementBy);
-            Assert.Equal(1, sequence.StartValue);
-            Assert.Null(sequence.MinValue);
-            Assert.Null(sequence.MaxValue);
-            Assert.Same(typeof(long), sequence.ClrType);
-
-            Assert.NotNull(model.FindSequence("Foo", "Smoo"));
-
-            var sequence2 = model.FindSequence("Foo", "Smoo");
-
-            sequence.StartValue = 1729;
-            sequence.IncrementBy = 11;
-            sequence.MinValue = 2001;
-            sequence.MaxValue = 2010;
-            sequence.ClrType = typeof(int);
-
-            Assert.Equal("Foo", sequence.Name);
-            Assert.Equal("Smoo", sequence.Schema);
-            Assert.Equal(11, sequence.IncrementBy);
-            Assert.Equal(1729, sequence.StartValue);
-            Assert.Equal(2001, sequence.MinValue);
-            Assert.Equal(2010, sequence.MaxValue);
-            Assert.Same(typeof(int), sequence.ClrType);
-
-            Assert.Equal(sequence2.Name, sequence.Name);
-            Assert.Equal(sequence2.Schema, sequence.Schema);
-            Assert.Equal(sequence2.IncrementBy, sequence.IncrementBy);
-            Assert.Equal(sequence2.StartValue, sequence.StartValue);
-            Assert.Equal(sequence2.MinValue, sequence.MinValue);
-            Assert.Equal(sequence2.MaxValue, sequence.MaxValue);
-            Assert.Same(sequence2.ClrType, sequence.ClrType);
-        }
-
-        [ConditionalFact]
-        public void Can_get_multiple_sequences()
-        {
-            var modelBuilder = GetModelBuilder();
-            var model = modelBuilder.Model;
-
-            model.AddSequence("Fibonacci");
-            model.AddSequence("Golomb");
-
-            var sequences = model.GetSequences();
-
-            Assert.Equal(2, sequences.Count);
-            Assert.Contains(sequences, s => s.Name == "Fibonacci");
-            Assert.Contains(sequences, s => s.Name == "Golomb");
-        }
-
-        [ConditionalFact]
-        public void Can_get_multiple_sequences_when_overridden()
-        {
-            var modelBuilder = GetModelBuilder();
-            var model = modelBuilder.Model;
-
-            model.AddSequence("Fibonacci").StartValue = 1;
-            model.FindSequence("Fibonacci").StartValue = 3;
-            model.AddSequence("Golomb");
-
-            var sequences = model.GetSequences();
-
-            Assert.Equal(2, sequences.Count);
-            Assert.Contains(sequences, s => s.Name == "Golomb");
-
-            var sequence = sequences.FirstOrDefault(s => s.Name == "Fibonacci");
-            Assert.NotNull(sequence);
-            Assert.Equal(3, sequence.StartValue);
         }
 
         [ConditionalFact]
@@ -498,34 +357,6 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             property.SetHiLoSequenceSchema(null);
 
             Assert.Null(property.GetHiLoSequenceSchema());
-        }
-
-        [ConditionalFact]
-        public void TryGetSequence_returns_null_if_property_is_not_configured_for_sequence_value_generation()
-        {
-            var modelBuilder = GetModelBuilder();
-
-            var property = modelBuilder
-                .Entity<Customer>()
-                .Property(e => e.Id)
-                .Metadata;
-
-            modelBuilder.Model.AddSequence("DaneelOlivaw");
-
-            Assert.Null(property.FindHiLoSequence());
-
-            property.SetHiLoSequenceName("DaneelOlivaw");
-
-            Assert.Null(property.FindHiLoSequence());
-
-            modelBuilder.Model.SetValueGenerationStrategy(SqlServerValueGenerationStrategy.IdentityColumn);
-
-            Assert.Null(property.FindHiLoSequence());
-
-            modelBuilder.Model.SetValueGenerationStrategy(null);
-            property.SetValueGenerationStrategy(SqlServerValueGenerationStrategy.IdentityColumn);
-
-            Assert.Null(property.FindHiLoSequence());
         }
 
         [ConditionalFact]

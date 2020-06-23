@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore.Cosmos.Internal;
-using Microsoft.EntityFrameworkCore.Cosmos.TestUtilities;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.TestModels.TransportationModel;
 using Microsoft.EntityFrameworkCore.TestUtilities;
@@ -15,18 +14,19 @@ using Newtonsoft.Json.Linq;
 using Xunit;
 using Xunit.Abstractions;
 
+// ReSharper disable InconsistentNaming
 namespace Microsoft.EntityFrameworkCore.Cosmos
 {
     public class EmbeddedDocumentsTest : IClassFixture<EmbeddedDocumentsTest.CosmosFixture>
     {
-        private const string DatabaseName = "NestedDocumentsTest";
+        private const string DatabaseName = "EmbeddedDocumentsTest";
 
         protected CosmosFixture Fixture { get; }
 
         public EmbeddedDocumentsTest(CosmosFixture fixture, ITestOutputHelper testOutputHelper)
         {
             Fixture = fixture;
-            TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
+            //TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
         }
 
         [ConditionalFact(Skip = "Issue #17670")]
@@ -107,7 +107,7 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
         }
 
         [ConditionalFact]
-        public virtual async Task Can_add_collection_dependent_to_owner()
+        public virtual async Task Can_manipulate_embedded_collections()
         {
             var options = Fixture.CreateOptions(seed: false);
 
@@ -120,77 +120,148 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
             using (var context = new EmbeddedTransportationContext(options))
             {
                 context.Add(new Person { Id = 1 });
-                existingAddress1Person2 = new Address { Street = "Second", City = "Village" };
-                context.Add(new Person { Id = 2, Addresses = new[] { existingAddress1Person2 } });
-                existingAddress1Person3 = new Address { Street = "First", City = "City" };
-                existingAddress2Person3 = new Address { Street = "Second", City = "City" };
-                context.Add(new Person { Id = 3, Addresses = new[] { existingAddress1Person3, existingAddress2Person3 } });
+                var note1 = new Note { Content = "First note" };
+                var note2 = new Note { Content = "Second note" };
+                existingAddress1Person2 = new Address
+                {
+                    Street = "Second",
+                    City = "Village",
+                    Notes = new List<Note> { note1, note2 }
+                };
+                context.Add(new Person { Id = 2, Addresses = new List<Address> { existingAddress1Person2 } });
+                existingAddress1Person3 = new Address
+                {
+                    Street = "First",
+                    City = "City",
+                    AddressTitle = new AddressTitle { Title = "P3 Shipping" }
+                };
+                existingAddress2Person3 = new Address
+                {
+                    Street = "Second",
+                    City = "City",
+                    AddressTitle = new AddressTitle { Title = "P3 Billing" }
+                };
+                context.Add(new Person { Id = 3, Addresses = new List<Address> { existingAddress1Person3, existingAddress2Person3 } });
 
                 await context.SaveChangesAsync();
+
+                var people = await context.Set<Person>().ToListAsync();
+
+                Assert.Empty(people[0].Addresses);
+
+                Assert.Equal(1, people[1].Addresses.Count);
+                Assert.Same(existingAddress1Person2, people[1].Addresses.First());
+
+                Assert.Equal(2, existingAddress1Person2.Notes.Count);
+                Assert.Same(existingAddress1Person3, people[2].Addresses.First());
+                Assert.Same(existingAddress2Person3, people[2].Addresses.Last());
+
+                Assert.Equal(2, people[2].Addresses.Count);
+                Assert.Same(existingAddress1Person3, people[2].Addresses.First());
+                Assert.Same(existingAddress2Person3, people[2].Addresses.Last());
             }
 
             using (var context = new EmbeddedTransportationContext(options))
             {
                 var people = await context.Set<Person>().ToListAsync();
-                addedAddress1 = new Address { Street = "First", City = "Town" };
+                addedAddress1 = new Address
+                {
+                    Street = "First",
+                    City = "Town",
+                    AddressTitle = new AddressTitle { Title = "P1" }
+                };
                 people[0].Addresses.Add(addedAddress1);
 
-                addedAddress2 = new Address { Street = "Another", City = "Village" };
+                addedAddress2 = new Address
+                {
+                    Street = "Another",
+                    City = "Village",
+                    AddressTitle = new AddressTitle { Title = "P2" },
+                    Notes = existingAddress1Person2.Notes
+                };
+                people[1].Addresses.Clear();
                 people[1].Addresses.Add(addedAddress2);
 
-                var existingAddressEntry = context.Entry(people[1].Addresses.First());
+                addedAddress3 = new Address
+                {
+                    Street = "Another",
+                    City = "City",
+                    AddressTitle = new AddressTitle { Title = "P3 Alternative" },
+                    Notes = new List<Note> { new Note { Content = "Another note" } }
+                };
 
-                var addressJson = existingAddressEntry.Property<JObject>("__jObject").CurrentValue;
+                var existingFirstAddressEntry = context.Entry(people[2].Addresses.First());
 
-                Assert.Equal("Second", addressJson[nameof(Address.Street)]);
+                var addressJson = existingFirstAddressEntry.Property<JObject>("__jObject").CurrentValue;
+
+                Assert.Equal("First", addressJson[nameof(Address.Street)]);
                 addressJson["unmappedId"] = 2;
 
-                existingAddressEntry.Property<JObject>("__jObject").IsModified = true;
+                existingFirstAddressEntry.Property<JObject>("__jObject").IsModified = true;
 
-                addedAddress3 = new Address { Street = "Another", City = "City" };
                 var existingLastAddress = people[2].Addresses.Last();
                 people[2].Addresses.Remove(existingLastAddress);
                 people[2].Addresses.Add(addedAddress3);
                 people[2].Addresses.Add(existingLastAddress);
 
+                existingLastAddress.Notes.Add(new Note { Content = "City note" });
+
                 await context.SaveChangesAsync();
+
+                await AssertState(context);
             }
 
             using (var context = new EmbeddedTransportationContext(options))
             {
+                await AssertState(context);
+            }
+
+            async Task AssertState(EmbeddedTransportationContext context)
+            {
                 var people = await context.Set<Person>().OrderBy(o => o.Id).ToListAsync();
-                var addresses = people[0].Addresses.ToList();
-                Assert.Equal(addedAddress1.Street, addresses.Single().Street);
-                Assert.Equal(addedAddress1.City, addresses.Single().City);
+                var firstAddress = people[0].Addresses.Single();
+                Assert.Equal("First", firstAddress.Street);
+                Assert.Equal("Town", firstAddress.City);
+                Assert.Equal("P1", firstAddress.AddressTitle.Title);
+                Assert.Empty(firstAddress.Notes);
 
-                addresses = people[1].Addresses.ToList();
-                Assert.Equal(2, addresses.Count);
+                var addresses = people[1].Addresses.ToList();
+                Assert.Single(addresses);
 
-                Assert.Equal(existingAddress1Person2.Street, addresses[0].Street);
-                Assert.Equal(existingAddress1Person2.City, addresses[0].City);
-
-                Assert.Equal(addedAddress2.Street, addresses[1].Street);
-                Assert.Equal(addedAddress2.City, addresses[1].City);
-
-                var existingAddressEntry = context.Entry(people[1].Addresses.First());
-
-                var addressJson = existingAddressEntry.Property<JObject>("__jObject").CurrentValue;
-
-                Assert.Equal("Second", addressJson[nameof(Address.Street)]);
-                Assert.Equal(3, addressJson.Count);
-                Assert.Equal(2, addressJson["unmappedId"]);
+                Assert.Equal("Another", addresses[0].Street);
+                Assert.Equal("Village", addresses[0].City);
+                Assert.Equal("P2", addresses[0].AddressTitle.Title);
+                var notes = addresses[0].Notes;
+                Assert.Equal(2, notes.Count);
+                Assert.Equal("First note", notes.First().Content);
+                Assert.Equal("Second note", notes.Last().Content);
 
                 addresses = people[2].Addresses.ToList();
                 Assert.Equal(3, addresses.Count);
 
-                Assert.Equal(existingAddress1Person3.Street, addresses[0].Street);
-                Assert.Equal(existingAddress1Person3.City, addresses[0].City);
+                Assert.Equal("First", addresses[0].Street);
+                Assert.Equal("City", addresses[0].City);
+                Assert.Equal("P3 Shipping", addresses[0].AddressTitle.Title);
 
-                Assert.Equal(addedAddress3.Street, addresses[1].Street);
-                Assert.Equal(addedAddress3.City, addresses[1].City);
+                var existingAddressEntry = context.Entry(addresses[0]);
 
-                Assert.Equal(existingAddress2Person3.Street, addresses[2].Street);
-                Assert.Equal(existingAddress2Person3.City, addresses[2].City);
+                var addressJson = existingAddressEntry.Property<JObject>("__jObject").CurrentValue;
+
+                Assert.Equal("First", addressJson[nameof(Address.Street)]);
+                Assert.Equal(5, addressJson.Count);
+                Assert.Equal(2, addressJson["unmappedId"]);
+
+                Assert.Equal("Another", addresses[1].Street);
+                Assert.Equal("City", addresses[1].City);
+                Assert.Equal("P3 Alternative", addresses[1].AddressTitle.Title);
+                Assert.Equal(1, addresses[1].Notes.Count);
+                Assert.Equal("Another note", addresses[1].Notes.First().Content);
+
+                Assert.Equal("Second", addresses[2].Street);
+                Assert.Equal("City", addresses[2].City);
+                Assert.Equal("P3 Billing", addresses[2].AddressTitle.Title);
+                Assert.Equal(1, addresses[2].Notes.Count);
+                Assert.Equal("City note", addresses[2].Notes.First().Content);
             }
         }
 
@@ -264,21 +335,19 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
         }
 
         [ConditionalFact]
-        public virtual async Task Can_query_just_nested_reference()
+        public virtual async Task Can_query_just_embedded_reference()
         {
             var options = Fixture.CreateOptions();
-            using (var context = new EmbeddedTransportationContext(options))
-            {
-                var firstOperator = await context.Set<Vehicle>().OrderBy(o => o.Name).Select(v => v.Operator)
-                    .AsNoTracking().FirstAsync();
+            using var context = new EmbeddedTransportationContext(options);
+            var firstOperator = await context.Set<Vehicle>().OrderBy(o => o.Name).Select(v => v.Operator)
+                .AsNoTracking().FirstAsync();
 
-                Assert.Equal("Albert Williams", firstOperator.Name);
-                Assert.Null(firstOperator.Vehicle);
-            }
+            Assert.Equal("Albert Williams", firstOperator.Name);
+            Assert.Null(firstOperator.Vehicle);
         }
 
         [ConditionalFact]
-        public virtual async Task Can_query_just_nested_collection()
+        public virtual async Task Can_query_just_embedded_collection()
         {
             var options = Fixture.CreateOptions(seed: false);
 
@@ -290,7 +359,7 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
                         Id = 3,
                         Addresses = new[]
                         {
-                                new Address { Street = "First", City = "City" }, new Address { Street = "Second", City = "City" }
+                            new Address { Street = "First", City = "City" }, new Address { Street = "Second", City = "City" }
                         }
                     });
 
@@ -309,16 +378,19 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
         public virtual async Task Inserting_dependent_without_principal_throws()
         {
             var options = Fixture.CreateOptions(seed: false);
-            using (var context = new EmbeddedTransportationContext(options))
-            {
-                context.Add(
-                    new LicensedOperator { Name = "Jack Jackson", LicenseType = "Class A CDC", VehicleName = "Fuel transport" });
+            using var context = new EmbeddedTransportationContext(options);
+            context.Add(
+                new LicensedOperator
+                {
+                    Name = "Jack Jackson",
+                    LicenseType = "Class A CDC",
+                    VehicleName = "Fuel transport"
+                });
 
-                Assert.Equal(
-                    CosmosStrings.OrphanedNestedDocumentSensitive(
-                        nameof(Operator), nameof(Vehicle), "{VehicleName: Fuel transport}"),
-                    (await Assert.ThrowsAsync<InvalidOperationException>(() => context.SaveChangesAsync())).Message);
-            }
+            Assert.Equal(
+                CosmosStrings.OrphanedNestedDocumentSensitive(
+                    nameof(Operator), nameof(Vehicle), "{VehicleName: Fuel transport}"),
+                (await Assert.ThrowsAsync<InvalidOperationException>(() => context.SaveChangesAsync())).Message);
         }
 
         [ConditionalFact]
@@ -354,10 +426,15 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
             {
                 var bike = await context.Vehicles.SingleAsync(v => v.Name == "Trek Pro Fit Madone 6 Series");
 
-                var newBike = new Vehicle { Name = "Trek Pro Fit Madone 6 Series", Operator = bike.Operator, SeatingCapacity = 2 };
+                var newBike = new Vehicle
+                {
+                    Name = "Trek Pro Fit Madone 6 Series",
+                    Operator = bike.Operator,
+                    SeatingCapacity = 2
+                };
 
-                var oldEntry = context.Remove(bike);
-                var newEntry = context.Add(newBike);
+                context.Remove(bike);
+                context.Add(newBike);
 
                 TestSqlLoggerFactory.Clear();
                 await context.SaveChangesAsync();
@@ -403,13 +480,14 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
                 OnModelCreatingAction = onModelCreating;
                 AdditionalModelCacheKey = additionalModelCacheKey;
                 var options = CreateOptions(TestStore);
-                TestStore.Initialize(ServiceProvider, () => new EmbeddedTransportationContext(options), c =>
-                {
-                    if (seed)
+                TestStore.Initialize(
+                    ServiceProvider, () => new EmbeddedTransportationContext(options), c =>
                     {
-                        ((TransportationContext)c).Seed();
-                    }
-                });
+                        if (seed)
+                        {
+                            ((TransportationContext)c).Seed();
+                        }
+                    });
 
                 ListLoggerFactory.Clear();
                 return options;
@@ -432,7 +510,7 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
                     _getAdditionalKey = getAdditionalKey;
                 }
 
-                public virtual object Create(DbContext context) => Tuple.Create(context.GetType(), _getAdditionalKey());
+                public object Create(DbContext context) => Tuple.Create(context.GetType(), _getAdditionalKey());
             }
         }
 
@@ -477,18 +555,25 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
                 modelBuilder.Ignore<SolidFuelTank>();
                 modelBuilder.Ignore<SolidRocket>();
 
+                modelBuilder.Entity<PersonBase>();
                 modelBuilder.Entity<Person>(
                     eb => eb.OwnsMany(
                         v => v.Addresses, b =>
                         {
                             b.ToJsonProperty("Stored Addresses");
+                            b.OwnsOne(a => a.AddressTitle);
+                            b.OwnsMany(a => a.Notes);
                         }));
             }
         }
 
-        private class Person
+        private abstract class PersonBase
         {
             public int Id { get; set; }
+        }
+
+        private class Person : PersonBase
+        {
             public ICollection<Address> Addresses { get; set; } = new HashSet<Address>();
         }
 
@@ -496,6 +581,18 @@ namespace Microsoft.EntityFrameworkCore.Cosmos
         {
             public string Street { get; set; }
             public string City { get; set; }
+            public AddressTitle AddressTitle { get; set; }
+            public ICollection<Note> Notes { get; set; } = new HashSet<Note>();
+        }
+
+        public class AddressTitle
+        {
+            public string Title { get; set; }
+        }
+
+        public class Note
+        {
+            public string Content { get; set; }
         }
     }
 }

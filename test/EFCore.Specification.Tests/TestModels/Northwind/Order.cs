@@ -8,7 +8,14 @@ namespace Microsoft.EntityFrameworkCore.TestModels.Northwind
 {
     public class Order
     {
-        public int OrderID { get; set; }
+        private int? _orderId;
+
+        public int OrderID
+        {
+            get => _orderId ?? 0;
+            set => _orderId = value;
+        }
+
         public string CustomerID { get; set; }
         public uint? EmployeeID { get; set; }
         public DateTime? OrderDate { get; set; }
@@ -39,7 +46,7 @@ namespace Microsoft.EntityFrameworkCore.TestModels.Northwind
             return ReferenceEquals(this, obj)
                 ? true
                 : obj.GetType() == GetType()
-                  && Equals((Order)obj);
+                && Equals((Order)obj);
         }
 
         public override int GetHashCode() => OrderID.GetHashCode();

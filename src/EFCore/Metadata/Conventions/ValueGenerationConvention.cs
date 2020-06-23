@@ -19,7 +19,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         IForeignKeyAddedConvention,
         IForeignKeyRemovedConvention,
         IForeignKeyPropertiesChangedConvention,
-        IEntityTypeBaseTypeChangedConvention
+        IEntityTypeBaseTypeChangedConvention,
+        IForeignKeyOwnershipChangedConvention
     {
         /// <summary>
         ///     Creates a new instance of <see cref="ValueGenerationConvention" />.
@@ -41,7 +42,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <param name="relationshipBuilder"> The builder for the foreign key. </param>
         /// <param name="context"> Additional information associated with convention execution. </param>
         public virtual void ProcessForeignKeyAdded(
-            IConventionRelationshipBuilder relationshipBuilder, IConventionContext<IConventionRelationshipBuilder> context)
+            IConventionForeignKeyBuilder relationshipBuilder, IConventionContext<IConventionForeignKeyBuilder> context)
         {
             foreach (var property in relationshipBuilder.Metadata.Properties)
             {
@@ -71,10 +72,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <param name="oldPrincipalKey"> The old principal key. </param>
         /// <param name="context"> Additional information associated with convention execution. </param>
         public virtual void ProcessForeignKeyPropertiesChanged(
-            IConventionRelationshipBuilder relationshipBuilder,
+            IConventionForeignKeyBuilder relationshipBuilder,
             IReadOnlyList<IConventionProperty> oldDependentProperties,
             IConventionKey oldPrincipalKey,
-            IConventionContext<IConventionRelationshipBuilder> context)
+            IConventionContext<IReadOnlyList<IConventionProperty>> context)
         {
             var foreignKey = relationshipBuilder.Metadata;
             if (!foreignKey.Properties.SequenceEqual(oldDependentProperties))
@@ -179,17 +180,17 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
         /// <returns> The store value generation strategy to set for the given property. </returns>
         public static ValueGenerated? GetValueGenerated([NotNull] IProperty property)
             => !property.IsForeignKey()
-               && ShouldHaveGeneratedProperty(property.FindContainingPrimaryKey())
-               && CanBeGenerated(property)
-                ? ValueGenerated.OnAdd
-                : (ValueGenerated?)null;
+                && ShouldHaveGeneratedProperty(property.FindContainingPrimaryKey())
+                && CanBeGenerated(property)
+                    ? ValueGenerated.OnAdd
+                    : (ValueGenerated?)null;
 
         private static bool ShouldHaveGeneratedProperty(IKey key)
         {
             var onOwnedType = key?.DeclaringEntityType.IsOwned();
             return key != null
-                   && (onOwnedType.Value && key.Properties.Count(p => !p.IsForeignKey()) == 1
-                       || !onOwnedType.Value && key.Properties.Count == 1);
+                && (onOwnedType.Value && key.Properties.Count(p => !p.IsForeignKey()) == 1
+                    || !onOwnedType.Value && key.Properties.Count == 1);
         }
 
         /// <summary>
@@ -203,7 +204,21 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Conventions
             var propertyType = property.ClrType.UnwrapNullableType();
             return (propertyType.IsInteger()
                     && propertyType != typeof(byte))
-                   || propertyType == typeof(Guid);
+                || propertyType == typeof(Guid);
+        }
+
+        /// <summary>
+        ///     Called after the ownership value for a foreign key is changed.
+        /// </summary>
+        /// <param name="relationshipBuilder"> The builder for the foreign key. </param>
+        /// <param name="context"> Additional information associated with convention execution. </param>
+        public virtual void ProcessForeignKeyOwnershipChanged(
+            IConventionForeignKeyBuilder relationshipBuilder, IConventionContext<bool?> context)
+        {
+            foreach (var property in relationshipBuilder.Metadata.DeclaringEntityType.GetProperties())
+            {
+                property.Builder.ValueGenerated(GetValueGenerated(property));
+            }
         }
     }
 }

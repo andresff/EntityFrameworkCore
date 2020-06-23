@@ -44,7 +44,7 @@ namespace Microsoft.EntityFrameworkCore.Metadata
         /// </summary>
         /// <param name="parameterType"> The parameter type. </param>
         /// <param name="parameterName"> The parameter name. </param>
-        /// <returns> True if this parameter can be bound; false otherwise. </returns>
+        /// <returns> <see langword="true"/> if this parameter can be bound; <see langword="false"/> otherwise. </returns>
         public override bool CanBind(
             Type parameterType,
             string parameterName)
@@ -53,8 +53,8 @@ namespace Microsoft.EntityFrameworkCore.Metadata
             Check.NotEmpty(parameterName, nameof(parameterName));
 
             return IsLazyLoader(parameterType)
-                   || IsLazyLoaderMethod(parameterType, parameterName)
-                   || IsLazyLoaderAsyncMethod(parameterType, parameterName);
+                || IsLazyLoaderMethod(parameterType, parameterName)
+                || IsLazyLoaderAsyncMethod(parameterType, parameterName);
         }
 
         /// <summary>
@@ -132,10 +132,10 @@ namespace Microsoft.EntityFrameworkCore.Metadata
 
         private static bool IsLazyLoaderMethod(Type type, string name)
             => type == typeof(Action<object, string>)
-               && name.Equals("lazyLoader", StringComparison.OrdinalIgnoreCase);
+                && name.Equals("lazyLoader", StringComparison.OrdinalIgnoreCase);
 
         private static bool IsLazyLoaderAsyncMethod(Type type, string name)
             => type == typeof(Func<object, CancellationToken, string, Task>)
-               && name.Equals("lazyLoader", StringComparison.OrdinalIgnoreCase);
+                && name.Equals("lazyLoader", StringComparison.OrdinalIgnoreCase);
     }
 }

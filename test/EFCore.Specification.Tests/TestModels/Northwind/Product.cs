@@ -7,12 +7,19 @@ namespace Microsoft.EntityFrameworkCore.TestModels.Northwind
 {
     public class Product
     {
+        private int? _productId;
+
         public Product()
         {
             OrderDetails = new List<OrderDetail>();
         }
 
-        public int ProductID { get; set; }
+        public int ProductID
+        {
+            get => _productId ?? 0;
+            set => _productId = value;
+        }
+
         public string ProductName { get; set; }
         public int? SupplierID { get; set; }
         public int? CategoryID { get; set; }
@@ -37,7 +44,7 @@ namespace Microsoft.EntityFrameworkCore.TestModels.Northwind
             return ReferenceEquals(this, obj)
                 ? true
                 : obj.GetType() == GetType()
-                  && Equals((Product)obj);
+                && Equals((Product)obj);
         }
 
         public override int GetHashCode() => ProductID.GetHashCode();

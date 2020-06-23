@@ -30,7 +30,7 @@ FROM [Categories] AS [c]",
 
 SELECT [p].[Id], [p].[DependentId], [p].[Name], [p].[Price]
 FROM [Products] AS [p]
-WHERE (([p].[DependentId] = @__category_PrincipalId_0) AND ([p].[DependentId] IS NOT NULL AND @__category_PrincipalId_0 IS NOT NULL)) OR ([p].[DependentId] IS NULL AND @__category_PrincipalId_0 IS NULL)",
+WHERE [p].[DependentId] = @__category_PrincipalId_0",
                 //
                 @"@p1='78'
 @p0='New Category' (Size = 4000)
@@ -47,51 +47,49 @@ FROM [Categories] AS [c]",
 
 SELECT [p].[Id], [p].[DependentId], [p].[Name], [p].[Price]
 FROM [Products] AS [p]
-WHERE (([p].[DependentId] = @__category_PrincipalId_0) AND ([p].[DependentId] IS NOT NULL AND @__category_PrincipalId_0 IS NOT NULL)) OR ([p].[DependentId] IS NULL AND @__category_PrincipalId_0 IS NULL)");
+WHERE [p].[DependentId] = @__category_PrincipalId_0");
         }
 
         public override void Identifiers_are_generated_correctly()
         {
-            using (var context = CreateContext())
-            {
-                var entityType = context.Model.FindEntityType(
-                    typeof(
-                        LoginEntityTypeWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWorkingCorrectly
-                    ));
-                Assert.Equal(
-                    "LoginEntityTypeWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWorking~",
-                    entityType.GetTableName());
-                Assert.Equal(
-                    "PK_LoginEntityTypeWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWork~",
-                    entityType.GetKeys().Single().GetName());
-                Assert.Equal(
-                    "FK_LoginEntityTypeWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWork~",
-                    entityType.GetForeignKeys().Single().GetConstraintName());
-                Assert.Equal(
-                    "IX_LoginEntityTypeWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWork~",
-                    entityType.GetIndexes().Single().GetName());
+            using var context = CreateContext();
+            var entityType = context.Model.FindEntityType(
+                typeof(
+                    LoginEntityTypeWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWorkingCorrectly
+                ));
+            Assert.Equal(
+                "LoginEntityTypeWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWorking~",
+                entityType.GetTableName());
+            Assert.Equal(
+                "PK_LoginEntityTypeWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWork~",
+                entityType.GetKeys().Single().GetName());
+            Assert.Equal(
+                "FK_LoginEntityTypeWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWork~",
+                entityType.GetForeignKeys().Single().GetConstraintName());
+            Assert.Equal(
+                "IX_LoginEntityTypeWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWork~",
+                entityType.GetIndexes().Single().GetDatabaseName());
 
-                var entityType2 = context.Model.FindEntityType(
-                    typeof(
-                        LoginEntityTypeWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWorkingCorrectlyDetails
-                    ));
+            var entityType2 = context.Model.FindEntityType(
+                typeof(
+                    LoginEntityTypeWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWorkingCorrectlyDetails
+                ));
 
-                Assert.Equal(
-                    "LoginEntityTypeWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWorkin~1",
-                    entityType2.GetTableName());
-                Assert.Equal(
-                    "PK_LoginDetails",
-                    entityType2.GetKeys().Single().GetName());
-                Assert.Equal(
-                    "ExtraPropertyWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWorkingCo~",
-                    entityType2.GetProperties().ElementAt(1).GetColumnName());
-                Assert.Equal(
-                    "ExtraPropertyWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWorkingC~1",
-                    entityType2.GetProperties().ElementAt(2).GetColumnName());
-                Assert.Equal(
-                    "IX_LoginEntityTypeWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWor~1",
-                    entityType2.GetIndexes().Single().GetName());
-            }
+            Assert.Equal(
+                "LoginEntityTypeWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWorkin~1",
+                entityType2.GetTableName());
+            Assert.Equal(
+                "PK_LoginDetails",
+                entityType2.GetKeys().Single().GetName());
+            Assert.Equal(
+                "ExtraPropertyWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWorkingCo~",
+                entityType2.GetProperties().ElementAt(1).GetColumnName());
+            Assert.Equal(
+                "ExtraPropertyWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWorkingC~1",
+                entityType2.GetProperties().ElementAt(2).GetColumnName());
+            Assert.Equal(
+                "IX_LoginEntityTypeWithAnExtremelyLongAndOverlyConvolutedNameThatIsUsedToVerifyThatTheStoreIdentifierGenerationLengthLimitIsWor~1",
+                entityType2.GetIndexes().Single().GetDatabaseName());
         }
 
         private void AssertSql(params string[] expected)

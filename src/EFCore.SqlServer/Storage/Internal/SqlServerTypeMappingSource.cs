@@ -266,7 +266,7 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal
         /// </summary>
         protected override RelationalTypeMapping FindMapping(in RelationalTypeMappingInfo mappingInfo)
             => FindRawMapping(mappingInfo)?.Clone(mappingInfo)
-               ?? base.FindMapping(mappingInfo);
+                ?? base.FindMapping(mappingInfo);
 
         private RelationalTypeMapping FindRawMapping(RelationalTypeMappingInfo mappingInfo)
         {
@@ -289,9 +289,9 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal
                     || _storeTypeMappings.TryGetValue(storeTypeNameBase, out mapping))
                 {
                     return clrType == null
-                           || mapping.ClrType == clrType
-                        ? mapping
-                        : null;
+                        || mapping.ClrType == clrType
+                            ? mapping
+                            : null;
                 }
             }
 
@@ -319,12 +319,21 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal
                         size = isFixedLength ? maxSize : (int?)null;
                     }
 
-                    return size == null
-                        ? isAnsi ? _variableLengthMaxAnsiString : _variableLengthMaxUnicodeString
-                        : new SqlServerStringTypeMapping(
-                            unicode: !isAnsi,
-                            size: size,
-                            fixedLength: isFixedLength);
+                    if (size == null)
+                    {
+                        return isAnsi
+                            ? isFixedLength
+                                ? _fixedLengthAnsiString
+                                : _variableLengthMaxAnsiString
+                            : isFixedLength
+                                ? _fixedLengthUnicodeString
+                                : _variableLengthMaxUnicodeString;
+                    }
+
+                    return new SqlServerStringTypeMapping(
+                        unicode: !isAnsi,
+                        size: size,
+                        fixedLength: isFixedLength);
                 }
 
                 if (clrType == typeof(byte[]))
@@ -350,5 +359,17 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Storage.Internal
 
             return null;
         }
+
+        private static readonly List<string> _nameBasesUsingPrecision =
+            new List<string>() { "decimal", "dec", "numeric", "datetime2", "datetimeoffset" };
+
+        /// <summary>
+        ///     This is an internal API that supports the Entity Framework Core infrastructure and not subject to
+        ///     the same compatibility standards as public APIs. It may be changed or removed without notice in
+        ///     any release. You should only use it directly in your code with extreme caution and knowing that
+        ///     doing so can result in application failures when updating to a new Entity Framework Core release.
+        /// </summary>
+        protected override bool StoreTypeNameBaseUsesPrecision(string storeTypeNameBase)
+            => _nameBasesUsingPrecision.Contains(storeTypeNameBase);
     }
 }
